@@ -33,6 +33,9 @@ class UndertonesShader {
     this.mouse = new THREE.Vector2(0.5, 0.5);
     this.targetMouse = new THREE.Vector2(0.5, 0.5);
     
+    // Idle fading state
+    this.activeState = 0.0;
+    
     // Trail array for water effect
     this.trailCount = 20;
     this.trail = [];
@@ -96,6 +99,7 @@ class UndertonesShader {
         uResolution: { value: new THREE.Vector2(this.width, this.height) },
         uCursor: { value: this.mouse },
         uTrail: { value: this.trail },
+        uActive: { value: this.activeState },
         uCursorRadius: { value: this.cursorRadius },
         uFlutes: { value: this.flutes },
         uBackgroundColor: { value: new THREE.Color(this.backgroundColor) },
@@ -170,6 +174,14 @@ class UndertonesShader {
     if (this.material) {
         this.material.uniforms.uTime.value += delta;
         
+        // Handle idle fading
+        const dist = this.mouse.distanceTo(this.targetMouse);
+        if (dist > 0.0005) {
+            this.activeState = Math.min(this.activeState + delta * 5.0, 1.0);
+        } else {
+            this.activeState = Math.max(this.activeState - delta * 0.5, 0.0);
+        }
+        
         // Smoothly interpolate mouse position for water feel
         this.mouse.lerp(this.targetMouse, 0.15);
         
@@ -182,6 +194,7 @@ class UndertonesShader {
         if (this.material.uniforms.uCursor) {
             this.material.uniforms.uCursor.value.copy(this.mouse);
             this.material.uniforms.uTrail.value = this.trail;
+            this.material.uniforms.uActive.value = this.activeState;
         }
     }
 

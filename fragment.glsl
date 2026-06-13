@@ -1,7 +1,8 @@
 uniform float uTime;
 uniform vec2 uResolution;
 uniform vec2 uCursor;
-uniform vec2 uTrail[20]; // Restored trail for water effect
+uniform vec2 uTrail[20]; 
+uniform float uActive; // Controls idle fade out
 
 uniform vec3 uBackgroundColor;
 uniform vec3 uCursorBaseColor;
@@ -88,7 +89,7 @@ void main() {
     vec2 st = vUv * aspect;
     vec2 cursorSt = uCursor * aspect;
     
-    // 2. GLASS STRUCTURE (Proper, highly structural physical glass)
+    // 2. GLASS STRUCTURE
     float angle = 20.0 * PI / 180.0;
     float s = sin(angle);
     float c = cos(angle);
@@ -100,26 +101,38 @@ void main() {
     float fluteVal = sin(flutePhase);
     float fluteDerivative = cos(flutePhase);
     
-    // Softer normal for sleek web glass (matches the Undertones aesthetic better than heavy pipes)
-    vec3 normal = normalize(vec3(fluteDerivative * 2.5, 0.0, 1.0));
+    // Strong proper normal for deep glass effect when visible
+    vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
     vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
     
-    // 3. WATER-LIKE TRAIL MASK
+    // 3. WATER WAKE MASK
     float cursorMask = 0.0;
+    float wakeDistortion = 0.0; // Captures physical water wake
     for(int i = 0; i < 20; i++) {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(st, trailPoint);
         float age = float(i) / 20.0;
-        float radius = uCursorRadius * 0.3 * (1.0 - age * 0.4); 
         float intensity = 1.0 - age;
+        
+        // Large smooth mask for the color
+        float radius = uCursorRadius * 0.45 * (1.0 - age * 0.3); 
         cursorMask = max(cursorMask, smoothstep(radius, 0.0, d) * intensity);
+        
+        // Beautiful water wake ripple originating from movement trail
+        if (d < 0.4) {
+            float ripple = sin(d * 40.0 - uTime * 10.0) * 0.03 * intensity * smoothstep(0.4, 0.0, d);
+            wakeDistortion += ripple;
+        }
     }
+    
+    // Fade out entirely when idle
+    cursorMask *= smoothstep(0.0, 1.0, uActive);
     
     // 4. SLEEK FLUID NOISE
     float t = uTime * 0.1;
     
-    // Smooth physical refraction 
-    vec2 nSt = st + screenNormal * 0.25;
+    // Combine glass curvature with the physical water wake to distort the colors beneath!
+    vec2 nSt = st + screenNormal * 0.25 + vec2(wakeDistortion);
     
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
@@ -129,40 +142,40 @@ void main() {
     vec3 colorPurple = uCursorUpColor;   
     vec3 colorCyan = uCursorRightColor;  
     
-    // Widen the masks so the color fills more area and is highly visible
     float maskBlue = smoothstep(-0.6, 0.6, noise1);
     float maskPurple = smoothstep(-0.4, 0.8, noise2);
     
-    vec3 fluidColor = mix(uBackgroundColor, colorBlue, maskBlue);
+    vec3 fluidColor = mix(vec3(1.0), colorBlue, maskBlue);
     fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.9);
     fluidColor = mix(fluidColor, colorCyan, maskPurple * maskBlue);
     
-    // 6. TRUE GLASS RENDERING COMPOSITION
+    // 6. PERFECT ISOLATION RENDERING COMPOSITION
     
-    // Soft Ambient Occlusion for elegant sleek web glass
+    // Pure white idle background
+    vec3 pureWhite = uBackgroundColor; 
+    
+    // Strong glass shadows for the proper aesthetic
     float ao = smoothstep(-1.0, 1.0, fluteVal);
-    vec3 glassTint = mix(vec3(0.85), vec3(1.0), ao); // elegant soft shadows
+    vec3 glassTint = mix(vec3(0.6), vec3(1.0), ao); 
     
-    vec3 baseGlass = uBackgroundColor * glassTint;
+    // The rich, fluid colors layered under the glass
+    vec3 vibrantFluid = fluidColor * 1.25;
+    vec3 coloredGlass = vibrantFluid * mix(vec3(0.85), vec3(1.0), ao);
     
-    // Make fluid color incredibly bright so it shines OUT of the glass
-    vec3 vibrantFluid = fluidColor * 1.15;
-    vec3 coloredGlass = vibrantFluid * mix(vec3(0.95), vec3(1.0), ao);
+    // Combine pure white with the colored/shadowed glass using the cursor mask
+    vec3 finalColor = mix(pureWhite, coloredGlass, cursorMask);
     
-    vec3 finalColor = mix(baseGlass, coloredGlass, cursorMask);
-    
-    // Soft, premium WebGL specular highlights
+    // Only apply glass reflections inside the active masked area
     vec3 lightDir = normalize(vec3(-0.5, 1.0, 2.0)); 
-    float specAmount = pow(max(dot(normal, lightDir), 0.0), 32.0); // wider, softer shine
-    vec3 specular = vec3(1.0) * specAmount * 0.5; // less blinding
+    float specAmount = pow(max(dot(normal, lightDir), 0.0), 48.0);
+    vec3 specular = vec3(1.0) * specAmount * 0.8;
     
-    // Elegant Fresnel edge glow
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
     float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.0);
     
-    // Apply soft highlights
-    finalColor += specular * (0.5 + cursorMask * 0.5);
-    finalColor += vec3(1.0) * fresnel * 0.2;
+    // Specular and Fresnel are multiplied by cursorMask so they completely vanish into pure white when idle!
+    finalColor += specular * cursorMask;
+    finalColor += vec3(1.0) * fresnel * 0.25 * cursorMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
