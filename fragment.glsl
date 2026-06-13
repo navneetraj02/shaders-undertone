@@ -1,7 +1,6 @@
 uniform float uTime;
 uniform vec2 uResolution;
 uniform vec2 uCursor;
-uniform vec2 uTrail[30];
 
 uniform vec3 uBackgroundColor;
 uniform vec3 uCursorBaseColor;
@@ -18,7 +17,7 @@ varying vec2 vUv;
 #define PI 3.14159265359
 
 // -------------------------------------------------------------------------
-// 3D Simplex Noise by Ashima Arts
+// 3D Simplex Noise by Ashima Arts (Optimized to just the core noise)
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
 
@@ -82,126 +81,64 @@ float snoise(vec3 v){
   return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
 }
 
-// -------------------------------------------------------------------------
-// Fractional Brownian Motion
-float fbm(vec3 x) {
-    float v = 0.0;
-    float a = 0.5;
-    vec3 shift = vec3(100.0);
-    for (int i = 0; i < 4; ++i) {
-        v += a * snoise(x);
-        x = x * 2.0 + shift;
-        a *= 0.5;
-    }
-    return v;
-}
-
 void main() {
     // 1. Setup coordinates
     vec2 aspect = vec2(uResolution.x / uResolution.y, 1.0);
     vec2 st = vUv * aspect;
     vec2 cursorSt = uCursor * aspect;
     
-    // 2. FLUTED GLASS CALCULATION (70 degree rotation)
+    // 2. DIAGONAL GLASS BANDS
     float angle = 20.0 * PI / 180.0;
     float s = sin(angle);
     float c = cos(angle);
     mat2 rot = mat2(c, -s, s, c);
     vec2 rotSt = vUv * rot;
     
-    float frequency = uFlutes * 2.5; 
+    // Create sleek, clean ridges
+    float frequency = uFlutes * 2.0; 
     float flutePhase = rotSt.x * frequency;
-    
     float fluteVal = sin(flutePhase);
-    float fluteDerivative = cos(flutePhase);
     
-    // Strong glass normal
-    vec3 normal = normalize(vec3(fluteDerivative * 3.5, 0.0, 1.0));
-    vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
+    // Soft, elegant glass shadowing instead of heavy specular logic
+    float ridgeShadow = smoothstep(-1.0, 1.0, fluteVal);
+    vec3 baseGlass = mix(uBackgroundColor * 0.85, uBackgroundColor, ridgeShadow);
     
-    // 3. FLUID ADVECTION LOGIC (Domain Warping)
-    // Made extremely slow/still as requested
-    float t = uTime * 0.01;
+    // 3. SLEEK FLUID NOISE (Highly optimized - only 2 noise calls!)
+    float t = uTime * 0.2;
+    // Calculate noise along the diagonal flutes for a natural flow
+    float noise1 = snoise(vec3(rotSt.x * 2.0, rotSt.y * 1.5, t));
+    float noise2 = snoise(vec3(rotSt.x * 3.0 - 2.0, rotSt.y * 2.5, t * 1.2 + 10.0));
     
-    // We add intense Chromatic Aberration/Dispersion by computing fluid 3 times!
-    float refrStrengthR = 0.25;
-    float refrStrengthG = 0.35;
-    float refrStrengthB = 0.45;
+    // 4. SPOTLIGHT / CURSOR TRACKING
+    float distToCursor = distance(st, cursorSt);
+    // Large, soft, elegant spotlight matching the reference
+    float spotlight = smoothstep(uCursorRadius * 0.4, 0.0, distToCursor);
     
-    vec2 nStR = (st + screenNormal * refrStrengthR) * 1.5;
-    vec2 nStG = (st + screenNormal * refrStrengthG) * 1.5;
-    vec2 nStB = (st + screenNormal * refrStrengthB) * 1.5;
+    // 5. COLOR BLENDING
+    // Vibrant colors matching the screenshot
+    vec3 colorBlue = uCursorLeftColor;   // Vibrant Blue
+    vec3 colorPurple = uCursorUpColor;   // Vibrant Purple
+    vec3 colorCyan = uCursorRightColor;  // Cyan accent
     
-    // Domain warp R
-    vec2 qR = vec2(fbm(vec3(nStR, t)), fbm(vec3(nStR + vec2(5.2, 1.3), t)));
-    vec2 rR = vec2(fbm(vec3(nStR + 2.0*qR + vec2(1.7, 9.2), t*1.2)), fbm(vec3(nStR + 2.0*qR + vec2(8.3, 2.8), t*1.5)));
-    float fR = fbm(vec3(nStR + 1.5*rR, t*0.8));
+    // Create organic masks from the noise and the spotlight
+    float maskBlue = smoothstep(-0.4, 0.6, noise1) * spotlight;
+    float maskPurple = smoothstep(-0.2, 0.8, noise2) * spotlight;
     
-    // Domain warp G
-    vec2 qG = vec2(fbm(vec3(nStG, t)), fbm(vec3(nStG + vec2(5.2, 1.3), t)));
-    vec2 rG = vec2(fbm(vec3(nStG + 2.0*qG + vec2(1.7, 9.2), t*1.2)), fbm(vec3(nStG + 2.0*qG + vec2(8.3, 2.8), t*1.5)));
-    float fG = fbm(vec3(nStG + 1.5*rG, t*0.8));
+    // Blend the sleek vibrant colors together
+    vec3 fluidColor = mix(uBackgroundColor, colorBlue, maskBlue);
+    fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.9);
     
-    // Domain warp B
-    vec2 qB = vec2(fbm(vec3(nStB, t)), fbm(vec3(nStB + vec2(5.2, 1.3), t)));
-    vec2 rB = vec2(fbm(vec3(nStB + 2.0*qB + vec2(1.7, 9.2), t*1.2)), fbm(vec3(nStB + 2.0*qB + vec2(8.3, 2.8), t*1.5)));
-    float fB = fbm(vec3(nStB + 1.5*rB, t*0.8));
+    // Add a very subtle cyan glow right at the cursor center for depth
+    float centerGlow = smoothstep(uCursorRadius * 0.15, 0.0, distToCursor);
+    fluidColor = mix(fluidColor, colorCyan, centerGlow * 0.4);
     
-    // 4. TRAIL CALCULATION
-    float cursorMask = 0.0;
-    // Iterate over the trail array to build a smooth fading mask
-    for(int i = 0; i < 30; i++) {
-        vec2 trailPoint = uTrail[i] * aspect;
-        float d = distance(st, trailPoint);
-        // fade size and intensity based on age in trail
-        float age = float(i) / 30.0;
-        float radius = uCursorRadius * 0.35 * (1.0 - age * 0.5); // size shrinks slightly
-        float intensity = 1.0 - age; // opacity fades completely
-        cursorMask = max(cursorMask, smoothstep(radius, 0.0, d) * intensity);
-    }
+    // 6. FINAL COMPOSITION
+    // Blend the fluid color seamlessly under the clean glass ridges
+    // We add a tiny bit of ridge highlighting to make the bands pop like the screenshot
+    float highlight = smoothstep(0.8, 1.0, fluteVal) * 0.3 * spotlight;
     
-    // 5. COLOR MAPPING (using the split R, G, B noises for rich chromatic effect)
+    vec3 finalColor = mix(baseGlass, fluidColor, spotlight);
+    finalColor += vec3(1.0) * highlight; // sleek white ridge reflections
     
-    // Calculate masks for the different color channels to make it intensely vibrant
-    float maskR1 = smoothstep(-0.3, 0.5, fR) * cursorMask;
-    float maskG1 = smoothstep(-0.3, 0.5, fG) * cursorMask;
-    float maskB1 = smoothstep(-0.3, 0.5, fB) * cursorMask;
-    
-    float f2R = fbm(vec3(nStR - 1.5*rR, t*0.9+10.0));
-    float f2G = fbm(vec3(nStG - 1.5*rG, t*0.9+10.0));
-    float f2B = fbm(vec3(nStB - 1.5*rB, t*0.9+10.0));
-    
-    float maskR2 = smoothstep(-0.2, 0.6, f2R) * cursorMask;
-    float maskG2 = smoothstep(-0.2, 0.6, f2G) * cursorMask;
-    float maskB2 = smoothstep(-0.2, 0.6, f2B) * cursorMask;
-    
-    // Rich saturated inks
-    vec3 color1 = mix(uCursorLeftColor, uCursorRightColor, fG);
-    vec3 color2 = mix(uCursorUpColor, uCursorDownColor, f2G);
-    
-    // We compose the colored fluid separately for R, G, and B to get the rainbow edges
-    float finalR = mix(1.0, color1.r, maskR1) * mix(1.0, color2.r, maskR2 * 0.8);
-    float finalG = mix(1.0, color1.g, maskG1) * mix(1.0, color2.g, maskG2 * 0.8);
-    float finalB = mix(1.0, color1.b, maskB1) * mix(1.0, color2.b, maskB2 * 0.8);
-    
-    vec3 fluidColor = vec3(finalR, finalG, finalB);
-    
-    // 6. GLASS LIGHTING OVERLAY
-    float shadow = smoothstep(-1.0, 1.0, fluteVal);
-    vec3 glassTint = mix(vec3(0.92), vec3(1.0), shadow);
-    
-    vec3 finalColor = fluidColor * glassTint;
-    
-    // Specular Highlights - scaled back slightly so they don't wash out the rich colors
-    vec3 lightDir = normalize(vec3(-1.0, 1.0, 2.0)); 
-    float specAmount = pow(max(dot(normal, lightDir), 0.0), 128.0);
-    vec3 specular = vec3(1.0) * specAmount * 0.8; 
-    
-    vec3 rimDir = normalize(vec3(1.0, -1.0, 0.5));
-    float rimAmount = pow(max(dot(normal, rimDir), 0.0), 64.0);
-    vec3 rim = vec3(1.0) * rimAmount * 0.2;
-    
-    finalColor += specular + rim;
-
     gl_FragColor = vec4(finalColor, 1.0);
 }
