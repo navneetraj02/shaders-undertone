@@ -102,8 +102,8 @@ void main() {
     float fluteVal = sin(flutePhase);
     float fluteDerivative = cos(flutePhase);
     
-    // Strong proper normal for deep glass effect when visible
-    vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
+    // Extremely strong normal for structural depth and heavy refraction
+    vec3 normal = normalize(vec3(fluteDerivative * 6.0, 0.0, 1.0));
     vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
     
     // 3. WATER WAKE MASK
@@ -125,8 +125,8 @@ void main() {
     // 4. SLEEK FLUID NOISE
     float t = uTime * 0.1;
     
-    // Use pure glass curvature
-    vec2 nSt = st + screenNormal * 0.25;
+    // Strong physical refraction to bend the colours deeply
+    vec2 nSt = st + screenNormal * 0.35;
     
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
@@ -146,9 +146,9 @@ void main() {
     // Pure white idle background
     vec3 pureWhite = uBackgroundColor; 
     
-    // Strong glass shadows for the proper aesthetic
+    // Deeper physical shadows to give the glass ridges real 3D depth
     float ao = smoothstep(-1.0, 1.0, fluteVal);
-    vec3 glassTint = mix(vec3(0.6), vec3(1.0), ao); 
+    vec3 glassTint = mix(vec3(0.45), vec3(1.0), ao); 
     
     // The rich, fluid colors layered under the glass
     vec3 vibrantFluid = fluidColor * 1.25;
@@ -157,17 +157,18 @@ void main() {
     // Combine pure white with the colored/shadowed glass using the cursor mask
     vec3 finalColor = mix(pureWhite, coloredGlass, cursorMask);
     
-    // Only apply glass reflections inside the active masked area
+    // Sharp, blindingly bright specular highlights like highly polished glass
     vec3 lightDir = normalize(vec3(-0.5, 1.0, 2.0)); 
-    float specAmount = pow(max(dot(normal, lightDir), 0.0), 48.0);
-    vec3 specular = vec3(1.0) * specAmount * 0.8;
+    float specAmount = pow(max(dot(normal, lightDir), 0.0), 128.0);
+    vec3 specular = vec3(1.0) * specAmount * 1.8;
     
+    // Thick edge fresnel glow
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
-    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.0);
+    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 4.0);
     
     // Specular and Fresnel are multiplied by cursorMask so they completely vanish into pure white when idle!
     finalColor += specular * cursorMask;
-    finalColor += vec3(1.0) * fresnel * 0.25 * cursorMask;
+    finalColor += vec3(1.0) * fresnel * 0.4 * cursorMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
