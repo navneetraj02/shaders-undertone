@@ -1,6 +1,7 @@
 uniform float uTime;
 uniform vec2 uResolution;
 uniform vec2 uCursor;
+uniform vec2 uTrail[20]; // Restored trail for water effect
 
 uniform vec3 uBackgroundColor;
 uniform vec3 uCursorBaseColor;
@@ -87,58 +88,80 @@ void main() {
     vec2 st = vUv * aspect;
     vec2 cursorSt = uCursor * aspect;
     
-    // 2. DIAGONAL GLASS BANDS
+    // 2. GLASS STRUCTURE (Restored sharp physical reflections)
     float angle = 20.0 * PI / 180.0;
     float s = sin(angle);
     float c = cos(angle);
     mat2 rot = mat2(c, -s, s, c);
     vec2 rotSt = vUv * rot;
     
-    // Create sleek, clean ridges
     float frequency = uFlutes * 2.0; 
     float flutePhase = rotSt.x * frequency;
     float fluteVal = sin(flutePhase);
+    float fluteDerivative = cos(flutePhase);
     
-    // Soft, elegant glass shadowing instead of heavy specular logic
-    float ridgeShadow = smoothstep(-1.0, 1.0, fluteVal);
-    vec3 baseGlass = mix(uBackgroundColor * 0.85, uBackgroundColor, ridgeShadow);
+    // Strong glass normal for true 3D physical look
+    vec3 normal = normalize(vec3(fluteDerivative * 3.5, 0.0, 1.0));
+    vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
     
-    // 3. SLEEK FLUID NOISE (Highly optimized - only 2 noise calls!)
-    float t = uTime * 0.2;
-    // Calculate noise along the diagonal flutes for a natural flow
-    float noise1 = snoise(vec3(rotSt.x * 2.0, rotSt.y * 1.5, t));
-    float noise2 = snoise(vec3(rotSt.x * 3.0 - 2.0, rotSt.y * 2.5, t * 1.2 + 10.0));
+    // 3. WATER-LIKE TRAIL MASK (Extremely fast 20-point loop)
+    float cursorMask = 0.0;
+    for(int i = 0; i < 20; i++) {
+        vec2 trailPoint = uTrail[i] * aspect;
+        float d = distance(st, trailPoint);
+        float age = float(i) / 20.0;
+        // Tail shrinks slightly and fades
+        float radius = uCursorRadius * 0.3 * (1.0 - age * 0.4); 
+        float intensity = 1.0 - age;
+        cursorMask = max(cursorMask, smoothstep(radius, 0.0, d) * intensity);
+    }
     
-    // 4. SPOTLIGHT / CURSOR TRACKING
-    float distToCursor = distance(st, cursorSt);
-    // Large, soft, elegant spotlight matching the reference
-    float spotlight = smoothstep(uCursorRadius * 0.4, 0.0, distToCursor);
+    // 4. SLEEK FLUID NOISE (Fast - only 2 noise calls total!)
+    float t = uTime * 0.1; // slow flowing water
     
-    // 5. COLOR BLENDING
-    // Vibrant colors matching the screenshot
-    vec3 colorBlue = uCursorLeftColor;   // Vibrant Blue
-    vec3 colorPurple = uCursorUpColor;   // Vibrant Purple
-    vec3 colorCyan = uCursorRightColor;  // Cyan accent
+    // Distort the coordinates lightly using the glass normal for beautiful refraction
+    vec2 nSt = st + screenNormal * 0.15;
     
-    // Create organic masks from the noise and the spotlight
-    float maskBlue = smoothstep(-0.4, 0.6, noise1) * spotlight;
-    float maskPurple = smoothstep(-0.2, 0.8, noise2) * spotlight;
+    // Compute simple flow
+    float noise1 = snoise(vec3(nSt * 1.5, t));
+    float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
     
-    // Blend the sleek vibrant colors together
+    // 5. INTENSE COLORS
+    // The reference image uses deep, rich, saturated colours perfectly separated
+    vec3 colorBlue = uCursorLeftColor;   
+    vec3 colorPurple = uCursorUpColor;   
+    vec3 colorCyan = uCursorRightColor;  
+    
+    // Fluid masks
+    float maskBlue = smoothstep(-0.3, 0.6, noise1);
+    float maskPurple = smoothstep(-0.1, 0.8, noise2);
+    
+    // Pure vibrant colour mixing
     vec3 fluidColor = mix(uBackgroundColor, colorBlue, maskBlue);
-    fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.9);
-    
-    // Add a very subtle cyan glow right at the cursor center for depth
-    float centerGlow = smoothstep(uCursorRadius * 0.15, 0.0, distToCursor);
-    fluidColor = mix(fluidColor, colorCyan, centerGlow * 0.4);
+    fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.8);
+    fluidColor = mix(fluidColor, colorCyan, maskPurple * maskBlue);
     
     // 6. FINAL COMPOSITION
-    // Blend the fluid color seamlessly under the clean glass ridges
-    // We add a tiny bit of ridge highlighting to make the bands pop like the screenshot
-    float highlight = smoothstep(0.8, 1.0, fluteVal) * 0.3 * spotlight;
+    // Add realistic glass shadowing in the valleys
+    float shadow = smoothstep(-1.0, 1.0, fluteVal);
+    vec3 glassTint = mix(vec3(0.9), vec3(1.0), shadow);
     
-    vec3 finalColor = mix(baseGlass, fluidColor, spotlight);
-    finalColor += vec3(1.0) * highlight; // sleek white ridge reflections
+    // Restrict fluid perfectly to the water trail
+    vec3 baseGlass = uBackgroundColor * glassTint;
+    vec3 finalColor = mix(baseGlass, fluidColor * glassTint, cursorMask);
     
+    // SPECULAR HIGHLIGHTS (Restored for true physical glass effect)
+    vec3 lightDir = normalize(vec3(-1.0, 1.0, 2.0)); 
+    float specAmount = pow(max(dot(normal, lightDir), 0.0), 128.0);
+    vec3 specular = vec3(1.0) * specAmount * 1.2;
+    
+    // Rim lighting for the glass edges
+    vec3 rimDir = normalize(vec3(1.0, -1.0, 0.5));
+    float rimAmount = pow(max(dot(normal, rimDir), 0.0), 64.0);
+    vec3 rim = vec3(1.0) * rimAmount * 0.3;
+    
+    // Blend specular so it's strongest where the cursor/colour is
+    finalColor += (specular + rim) * (0.3 + cursorMask * 0.7);
+
     gl_FragColor = vec4(finalColor, 1.0);
 }

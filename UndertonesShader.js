@@ -32,6 +32,13 @@ class UndertonesShader {
     // Mouse tracking state for the color mask
     this.mouse = new THREE.Vector2(0.5, 0.5);
     this.targetMouse = new THREE.Vector2(0.5, 0.5);
+    
+    // Trail array for water effect
+    this.trailCount = 20;
+    this.trail = [];
+    for(let i = 0; i < this.trailCount; i++) {
+        this.trail.push(new THREE.Vector2(0.5, 0.5));
+    }
 
     // Fetch shaders asynchronously
     this.init();
@@ -88,6 +95,7 @@ class UndertonesShader {
         uTime: { value: 0 },
         uResolution: { value: new THREE.Vector2(this.width, this.height) },
         uCursor: { value: this.mouse },
+        uTrail: { value: this.trail },
         uCursorRadius: { value: this.cursorRadius },
         uFlutes: { value: this.flutes },
         uBackgroundColor: { value: new THREE.Color(this.backgroundColor) },
@@ -162,11 +170,18 @@ class UndertonesShader {
     if (this.material) {
         this.material.uniforms.uTime.value += delta;
         
-        // Smoothly interpolate mouse position for an elegant trailing feel
-        this.mouse.lerp(this.targetMouse, 0.05);
+        // Smoothly interpolate mouse position for water feel
+        this.mouse.lerp(this.targetMouse, 0.15);
+        
+        // Update trail array
+        for(let i = this.trailCount - 1; i > 0; i--) {
+            this.trail[i].copy(this.trail[i-1]);
+        }
+        this.trail[0].copy(this.mouse);
         
         if (this.material.uniforms.uCursor) {
             this.material.uniforms.uCursor.value.copy(this.mouse);
+            this.material.uniforms.uTrail.value = this.trail;
         }
     }
 
