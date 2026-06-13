@@ -107,7 +107,6 @@ void main() {
     
     // 3. WATER WAKE MASK
     float cursorMask = 0.0;
-    float wakeDistortion = 0.0; // Captures physical water wake
     for(int i = 0; i < 20; i++) {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(st, trailPoint);
@@ -115,14 +114,8 @@ void main() {
         float intensity = 1.0 - age;
         
         // Large smooth mask for the color
-        float radius = uCursorRadius * 0.45 * (1.0 - age * 0.3); 
+        float radius = uCursorRadius * 0.35 * (1.0 - age * 0.3); 
         cursorMask = max(cursorMask, smoothstep(radius, 0.0, d) * intensity);
-        
-        // Beautiful water wake ripple originating from movement trail
-        if (d < 0.4) {
-            float ripple = sin(d * 40.0 - uTime * 10.0) * 0.03 * intensity * smoothstep(0.4, 0.0, d);
-            wakeDistortion += ripple;
-        }
     }
     
     // Fade out entirely when idle
@@ -131,8 +124,8 @@ void main() {
     // 4. SLEEK FLUID NOISE
     float t = uTime * 0.1;
     
-    // Combine glass curvature with the physical water wake to distort the colors beneath!
-    vec2 nSt = st + screenNormal * 0.25 + vec2(wakeDistortion);
+    // Use pure glass curvature
+    vec2 nSt = st + screenNormal * 0.25;
     
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
