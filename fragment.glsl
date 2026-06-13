@@ -131,17 +131,15 @@ void main() {
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
     
-    // 5. INTENSE COLORS
-    vec3 colorBlue = uCursorLeftColor;   
+    // 5. INTENSE PURE COLORS (No white base)
+    vec3 colorLightBlue = uCursorLeftColor;   
     vec3 colorPurple = uCursorUpColor;   
-    vec3 colorCyan = uCursorRightColor;  
     
-    float maskBlue = smoothstep(-0.6, 0.6, noise1);
-    float maskPurple = smoothstep(-0.4, 0.8, noise2);
+    // Smooth, organic fluid mix exclusively between purple and light blue
+    float mixFactor = smoothstep(-0.6, 0.6, noise1 * 0.7 + noise2 * 0.3);
     
-    vec3 fluidColor = mix(vec3(1.0), colorBlue, maskBlue);
-    fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.9);
-    fluidColor = mix(fluidColor, colorCyan, maskPurple * maskBlue);
+    // The fluid color is now purely the gradient of those two colors, no white added!
+    vec3 fluidColor = mix(colorPurple, colorLightBlue, mixFactor);
     
     // 6. PERFECT ISOLATION RENDERING COMPOSITION
     
