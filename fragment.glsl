@@ -129,21 +129,28 @@ void main() {
     vec3 colorPurple = uCursorUpColor;   
     vec3 colorCyan = uCursorRightColor;  
     
-    float maskBlue = smoothstep(-0.3, 0.6, noise1);
-    float maskPurple = smoothstep(-0.1, 0.8, noise2);
+    // Widen the masks so the color fills more area and is highly visible
+    float maskBlue = smoothstep(-0.6, 0.6, noise1);
+    float maskPurple = smoothstep(-0.4, 0.8, noise2);
     
     vec3 fluidColor = mix(uBackgroundColor, colorBlue, maskBlue);
-    fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.8);
+    fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.9);
     fluidColor = mix(fluidColor, colorCyan, maskPurple * maskBlue);
     
     // 6. TRUE GLASS RENDERING COMPOSITION
     
     // Deep Ambient Occlusion (shadows) in the valleys of the glass ridges
     float ao = smoothstep(-1.0, 1.0, fluteVal);
-    vec3 glassTint = mix(vec3(0.65), vec3(1.0), ao); // strong shadows
+    vec3 glassTint = mix(vec3(0.65), vec3(1.0), ao); // strong shadows for empty glass
     
     vec3 baseGlass = uBackgroundColor * glassTint;
-    vec3 finalColor = mix(baseGlass, fluidColor * glassTint, cursorMask);
+    
+    // Make fluid color incredibly bright so it shines OUT of the glass
+    vec3 vibrantFluid = fluidColor * 1.3;
+    // The colored areas get lighter shadows so the colors stay rich and visible
+    vec3 coloredGlass = vibrantFluid * mix(vec3(0.85), vec3(1.0), ao);
+    
+    vec3 finalColor = mix(baseGlass, coloredGlass, cursorMask);
     
     // Sharp physical specular highlights
     vec3 lightDir = normalize(vec3(-0.5, 1.0, 2.0)); 
