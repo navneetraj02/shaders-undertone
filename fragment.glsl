@@ -100,8 +100,8 @@ void main() {
     float fluteVal = sin(flutePhase);
     float fluteDerivative = cos(flutePhase);
     
-    // Extremely strong normal for structural depth
-    vec3 normal = normalize(vec3(fluteDerivative * 6.0, 0.0, 1.0));
+    // Softer normal for sleek web glass (matches the Undertones aesthetic better than heavy pipes)
+    vec3 normal = normalize(vec3(fluteDerivative * 2.5, 0.0, 1.0));
     vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
     
     // 3. WATER-LIKE TRAIL MASK
@@ -118,8 +118,8 @@ void main() {
     // 4. SLEEK FLUID NOISE
     float t = uTime * 0.1;
     
-    // Heavy physical refraction - warp the coordinates deeply based on the glass curve
-    vec2 nSt = st + screenNormal * 0.35;
+    // Smooth physical refraction 
+    vec2 nSt = st + screenNormal * 0.25;
     
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
@@ -139,31 +139,30 @@ void main() {
     
     // 6. TRUE GLASS RENDERING COMPOSITION
     
-    // Deep Ambient Occlusion (shadows) in the valleys of the glass ridges
+    // Soft Ambient Occlusion for elegant sleek web glass
     float ao = smoothstep(-1.0, 1.0, fluteVal);
-    vec3 glassTint = mix(vec3(0.65), vec3(1.0), ao); // strong shadows for empty glass
+    vec3 glassTint = mix(vec3(0.85), vec3(1.0), ao); // elegant soft shadows
     
     vec3 baseGlass = uBackgroundColor * glassTint;
     
     // Make fluid color incredibly bright so it shines OUT of the glass
-    vec3 vibrantFluid = fluidColor * 1.3;
-    // The colored areas get lighter shadows so the colors stay rich and visible
-    vec3 coloredGlass = vibrantFluid * mix(vec3(0.85), vec3(1.0), ao);
+    vec3 vibrantFluid = fluidColor * 1.15;
+    vec3 coloredGlass = vibrantFluid * mix(vec3(0.95), vec3(1.0), ao);
     
     vec3 finalColor = mix(baseGlass, coloredGlass, cursorMask);
     
-    // Sharp physical specular highlights
+    // Soft, premium WebGL specular highlights
     vec3 lightDir = normalize(vec3(-0.5, 1.0, 2.0)); 
-    float specAmount = pow(max(dot(normal, lightDir), 0.0), 96.0);
-    vec3 specular = vec3(1.0) * specAmount * 1.5;
+    float specAmount = pow(max(dot(normal, lightDir), 0.0), 32.0); // wider, softer shine
+    vec3 specular = vec3(1.0) * specAmount * 0.5; // less blinding
     
-    // Fresnel edge glow (light wrapping around the thick glass edges)
+    // Elegant Fresnel edge glow
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
-    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 3.0);
+    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.0);
     
-    // Apply realistic glass surface reflections
-    finalColor += specular;
-    finalColor += vec3(1.0) * fresnel * 0.4;
+    // Apply soft highlights
+    finalColor += specular * (0.5 + cursorMask * 0.5);
+    finalColor += vec3(1.0) * fresnel * 0.2;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
