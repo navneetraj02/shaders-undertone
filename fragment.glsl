@@ -88,7 +88,7 @@ void main() {
     vec2 st = vUv * aspect;
     vec2 cursorSt = uCursor * aspect;
     
-    // 2. GLASS STRUCTURE (Restored sharp physical reflections)
+    // 2. GLASS STRUCTURE (Proper, highly structural physical glass)
     float angle = 20.0 * PI / 180.0;
     float s = sin(angle);
     float c = cos(angle);
@@ -100,68 +100,63 @@ void main() {
     float fluteVal = sin(flutePhase);
     float fluteDerivative = cos(flutePhase);
     
-    // Strong glass normal for true 3D physical look
-    vec3 normal = normalize(vec3(fluteDerivative * 3.5, 0.0, 1.0));
+    // Extremely strong normal for structural depth
+    vec3 normal = normalize(vec3(fluteDerivative * 6.0, 0.0, 1.0));
     vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
     
-    // 3. WATER-LIKE TRAIL MASK (Extremely fast 20-point loop)
+    // 3. WATER-LIKE TRAIL MASK
     float cursorMask = 0.0;
     for(int i = 0; i < 20; i++) {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(st, trailPoint);
         float age = float(i) / 20.0;
-        // Tail shrinks slightly and fades
         float radius = uCursorRadius * 0.3 * (1.0 - age * 0.4); 
         float intensity = 1.0 - age;
         cursorMask = max(cursorMask, smoothstep(radius, 0.0, d) * intensity);
     }
     
-    // 4. SLEEK FLUID NOISE (Fast - only 2 noise calls total!)
-    float t = uTime * 0.1; // slow flowing water
+    // 4. SLEEK FLUID NOISE
+    float t = uTime * 0.1;
     
-    // Distort the coordinates lightly using the glass normal for beautiful refraction
-    vec2 nSt = st + screenNormal * 0.15;
+    // Heavy physical refraction - warp the coordinates deeply based on the glass curve
+    vec2 nSt = st + screenNormal * 0.35;
     
-    // Compute simple flow
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
     
     // 5. INTENSE COLORS
-    // The reference image uses deep, rich, saturated colours perfectly separated
     vec3 colorBlue = uCursorLeftColor;   
     vec3 colorPurple = uCursorUpColor;   
     vec3 colorCyan = uCursorRightColor;  
     
-    // Fluid masks
     float maskBlue = smoothstep(-0.3, 0.6, noise1);
     float maskPurple = smoothstep(-0.1, 0.8, noise2);
     
-    // Pure vibrant colour mixing
     vec3 fluidColor = mix(uBackgroundColor, colorBlue, maskBlue);
     fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.8);
     fluidColor = mix(fluidColor, colorCyan, maskPurple * maskBlue);
     
-    // 6. FINAL COMPOSITION
-    // Add realistic glass shadowing in the valleys
-    float shadow = smoothstep(-1.0, 1.0, fluteVal);
-    vec3 glassTint = mix(vec3(0.9), vec3(1.0), shadow);
+    // 6. TRUE GLASS RENDERING COMPOSITION
     
-    // Restrict fluid perfectly to the water trail
+    // Deep Ambient Occlusion (shadows) in the valleys of the glass ridges
+    float ao = smoothstep(-1.0, 1.0, fluteVal);
+    vec3 glassTint = mix(vec3(0.65), vec3(1.0), ao); // strong shadows
+    
     vec3 baseGlass = uBackgroundColor * glassTint;
     vec3 finalColor = mix(baseGlass, fluidColor * glassTint, cursorMask);
     
-    // SPECULAR HIGHLIGHTS (Restored for true physical glass effect)
-    vec3 lightDir = normalize(vec3(-1.0, 1.0, 2.0)); 
-    float specAmount = pow(max(dot(normal, lightDir), 0.0), 128.0);
-    vec3 specular = vec3(1.0) * specAmount * 1.2;
+    // Sharp physical specular highlights
+    vec3 lightDir = normalize(vec3(-0.5, 1.0, 2.0)); 
+    float specAmount = pow(max(dot(normal, lightDir), 0.0), 96.0);
+    vec3 specular = vec3(1.0) * specAmount * 1.5;
     
-    // Rim lighting for the glass edges
-    vec3 rimDir = normalize(vec3(1.0, -1.0, 0.5));
-    float rimAmount = pow(max(dot(normal, rimDir), 0.0), 64.0);
-    vec3 rim = vec3(1.0) * rimAmount * 0.3;
+    // Fresnel edge glow (light wrapping around the thick glass edges)
+    vec3 viewDir = vec3(0.0, 0.0, 1.0);
+    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 3.0);
     
-    // Blend specular so it's strongest where the cursor/colour is
-    finalColor += (specular + rim) * (0.3 + cursorMask * 0.7);
-
+    // Apply realistic glass surface reflections
+    finalColor += specular;
+    finalColor += vec3(1.0) * fresnel * 0.4;
+    
     gl_FragColor = vec4(finalColor, 1.0);
 }
