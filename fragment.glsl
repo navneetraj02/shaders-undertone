@@ -139,9 +139,9 @@ void main() {
     float maskBlue = smoothstep(-0.6, 0.6, noise1);
     float maskPurple = smoothstep(-0.4, 0.8, noise2);
     
-    vec3 fluidColor = mix(vec3(1.0), colorBlue, maskBlue);
-    fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.9);
-    fluidColor = mix(fluidColor, colorCyan, maskPurple * maskBlue);
+    // Rich, pure colors without washing them out with white!
+    vec3 fluidColor = mix(colorBlue, colorPurple, maskPurple);
+    fluidColor = mix(fluidColor, colorCyan, maskBlue);
     
     // 6. PERFECT ISOLATION RENDERING COMPOSITION
     
@@ -152,9 +152,9 @@ void main() {
     float ao = smoothstep(-1.0, 1.0, fluteVal);
     vec3 glassTint = mix(vec3(0.6), vec3(1.0), ao); 
     
-    // The rich, fluid colors layered under the glass
-    vec3 vibrantFluid = fluidColor * 1.25;
-    vec3 coloredGlass = vibrantFluid * mix(vec3(0.85), vec3(1.0), ao);
+    // The rich, fluid colors layered under the glass - incredibly bright!
+    vec3 vibrantFluid = fluidColor * 1.3;
+    vec3 coloredGlass = vibrantFluid * mix(vec3(0.95), vec3(1.0), ao);
     
     // Combine pure white with the colored/shadowed glass using the cursor mask
     vec3 finalColor = mix(pureWhite, coloredGlass, cursorMask);
