@@ -131,17 +131,20 @@ void main() {
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
     
-    // 5. INTENSE COLORS
+    // 5. INTENSE PURE COLORS
     vec3 colorBlue = uCursorLeftColor;   
     vec3 colorPurple = uCursorUpColor;   
     vec3 colorCyan = uCursorRightColor;  
+    vec3 colorDark = uCursorDownColor;
     
     float maskBlue = smoothstep(-0.6, 0.6, noise1);
     float maskPurple = smoothstep(-0.4, 0.8, noise2);
     
-    // Rich, pure colors without washing them out with white!
-    vec3 fluidColor = mix(colorBlue, colorPurple, maskPurple);
-    fluidColor = mix(fluidColor, colorCyan, maskBlue);
+    // Start with pure blue instead of white! This eliminates the washed-out white gradient.
+    vec3 fluidColor = colorBlue; 
+    fluidColor = mix(fluidColor, colorDark, 1.0 - maskBlue); // Deep color in the valleys
+    fluidColor = mix(fluidColor, colorPurple, maskPurple);
+    fluidColor = mix(fluidColor, colorCyan, maskPurple * maskBlue);
     
     // 6. PERFECT ISOLATION RENDERING COMPOSITION
     
@@ -152,9 +155,9 @@ void main() {
     float ao = smoothstep(-1.0, 1.0, fluteVal);
     vec3 glassTint = mix(vec3(0.6), vec3(1.0), ao); 
     
-    // The rich, fluid colors layered under the glass - incredibly bright!
-    vec3 vibrantFluid = fluidColor * 1.3;
-    vec3 coloredGlass = vibrantFluid * mix(vec3(0.95), vec3(1.0), ao);
+    // The rich, fluid colors layered under the glass
+    vec3 vibrantFluid = fluidColor * 1.25;
+    vec3 coloredGlass = vibrantFluid * mix(vec3(0.85), vec3(1.0), ao);
     
     // Combine pure white with the colored/shadowed glass using the cursor mask
     vec3 finalColor = mix(pureWhite, coloredGlass, cursorMask);
