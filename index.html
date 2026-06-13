@@ -9,82 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-
-    <!-- UI Overlay matching screenshot -->
-    <div class="floating-panel">
-        <div class="panel-header">
-            <span>Reset</span>
-            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </div>
-        
-        <div class="panel-body">
-            <!-- Colors -->
-            <div class="control-row">
-                <label>Background</label>
-                <div class="color-picker">
-                    <input type="color" id="bgColor" value="#ffffff">
-                    <span class="hex-val">#ffffff</span>
-                </div>
-            </div>
-
-            <div class="control-row">
-                <label>Cursor Base</label>
-                <div class="color-picker">
-                    <input type="color" id="baseColor" value="#ffffff">
-                    <span class="hex-val">#ffffff</span>
-                </div>
-            </div>
-
-            <div class="control-row">
-                <label>Cursor Up</label>
-                <div class="color-picker">
-                    <input type="color" id="upColor" value="#7f66ff">
-                    <span class="hex-val">#7f66ff</span>
-                </div>
-            </div>
-
-            <div class="control-row">
-                <label>Cursor Down</label>
-                <div class="color-picker">
-                    <input type="color" id="downColor" value="#4642ff">
-                    <span class="hex-val">#4642ff</span>
-                </div>
-            </div>
-
-            <div class="control-row">
-                <label>Cursor Left</label>
-                <div class="color-picker">
-                    <input type="color" id="leftColor" value="#56c2fc">
-                    <span class="hex-val">#56c2fc</span>
-                </div>
-            </div>
-
-            <div class="control-row">
-                <label>Cursor Right</label>
-                <div class="color-picker">
-                    <input type="color" id="rightColor" value="#5b4fff">
-                    <span class="hex-val">#5b4fff</span>
-                </div>
-            </div>
-
-            <!-- Cursor Divider -->
-            <div class="section-title">CURSOR</div>
-            <div class="control-row">
-                <label>Cursor Radius</label>
-                <div class="slider-group">
-                    <input type="range" id="radius" min="1.0" max="10.0" step="0.1" value="3.5">
-                    <span class="val" id="radiusVal">3.5</span>
-                </div>
-            </div>
-
-            <!-- Flutes Divider -->
-            <div class="section-title">FLUTES</div>
-            <p class="flutes-desc">
-                This is a limited set of commonly-edited props for preview.<br>
-                <a href="#">Unlock Pro</a> to open this preset in the design editor.
-            </p>
-        </div>
-    </div>
+    <!-- Target Element for Shader -->
+    <div id="shader-container"></div>
 
     <!-- Load Three.js from CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -96,42 +22,16 @@
     <script>
         // Initialize the premium glass background
         const background = new UndertonesShader({
-            selector: 'body',
+            selector: '#shader-container',
             backgroundColor: '#ffffff',
             cursorBaseColor: '#ffffff',
             cursorUpColor: '#7f66ff',
             cursorDownColor: '#4642ff',
             cursorLeftColor: '#56c2fc',
             cursorRightColor: '#5b4fff',
-            cursorRadius: 3.5,
+            cursorRadius: 1.9,
             flutes: 15.0,
             zIndex: -99
-        });
-
-        // Hook up UI inputs
-        const bindColor = (id, prop) => {
-            const el = document.getElementById(id);
-            const hexText = el.nextElementSibling;
-            el.addEventListener('input', (e) => {
-                const hex = e.target.value;
-                hexText.textContent = hex;
-                background.updateOptions({ [prop]: hex });
-            });
-        };
-
-        bindColor('bgColor', 'backgroundColor');
-        bindColor('baseColor', 'cursorBaseColor');
-        bindColor('upColor', 'cursorUpColor');
-        bindColor('downColor', 'cursorDownColor');
-        bindColor('leftColor', 'cursorLeftColor');
-        bindColor('rightColor', 'cursorRightColor');
-
-        const radiusEl = document.getElementById('radius');
-        const radiusVal = document.getElementById('radiusVal');
-        radiusEl.addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value).toFixed(1);
-            radiusVal.textContent = val;
-            background.updateOptions({ cursorRadius: parseFloat(val) });
         });
     </script>
 </body>

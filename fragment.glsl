@@ -82,13 +82,6 @@ float snoise(vec3 v){
   return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
 }
 
-// Smoothly blend the cursor colors based on the position on the screen
-vec3 getCursorColor(vec2 uv) {
-    vec3 colorX = mix(uCursorLeftColor, uCursorRightColor, smoothstep(0.0, 1.0, uv.x));
-    vec3 colorY = mix(uCursorDownColor, uCursorUpColor, smoothstep(0.0, 1.0, uv.y));
-    return mix(colorX, colorY, 0.5);
-}
-
 // -------------------------------------------------------------------------
 // Fractional Brownian Motion
 float fbm(vec3 x) {
@@ -127,8 +120,8 @@ void main() {
     vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
     
     // 3. FLUID ADVECTION LOGIC (Domain Warping)
-    // "make it still": Reduced speed to almost zero so the fluid is effectively static/frozen
-    float t = uTime * 0.005;
+    // Made extremely slow/still as requested
+    float t = uTime * 0.01;
     
     // We add intense Chromatic Aberration/Dispersion by computing fluid 3 times!
     float refrStrengthR = 0.25;
@@ -156,29 +149,40 @@ void main() {
     
     // 4. TRAIL CALCULATION
     float cursorMask = 0.0;
+    // Iterate over the trail array to build a smooth fading mask
     for(int i = 0; i < 30; i++) {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(st, trailPoint);
+        // fade size and intensity based on age in trail
         float age = float(i) / 30.0;
-        float radius = uCursorRadius * 0.35 * (1.0 - age * 0.5); 
-        float intensity = 1.0 - age; 
+        float radius = uCursorRadius * 0.35 * (1.0 - age * 0.5); // size shrinks slightly
+        float intensity = 1.0 - age; // opacity fades completely
         cursorMask = max(cursorMask, smoothstep(radius, 0.0, d) * intensity);
     }
     
-    // 5. COLOR MAPPING
+    // 5. COLOR MAPPING (using the split R, G, B noises for rich chromatic effect)
     
-    // Masks for the different color channels
+    // Calculate masks for the different color channels to make it intensely vibrant
     float maskR1 = smoothstep(-0.3, 0.5, fR) * cursorMask;
     float maskG1 = smoothstep(-0.3, 0.5, fG) * cursorMask;
     float maskB1 = smoothstep(-0.3, 0.5, fB) * cursorMask;
     
-    // Use the UI configured colors to form the gradient
-    vec3 gradientColor = getCursorColor(vUv);
+    float f2R = fbm(vec3(nStR - 1.5*rR, t*0.9+10.0));
+    float f2G = fbm(vec3(nStG - 1.5*rG, t*0.9+10.0));
+    float f2B = fbm(vec3(nStB - 1.5*rB, t*0.9+10.0));
     
-    // Compose the final colored fluid separately for R, G, and B to get rainbow edges
-    float finalR = mix(1.0, gradientColor.r, maskR1);
-    float finalG = mix(1.0, gradientColor.g, maskG1);
-    float finalB = mix(1.0, gradientColor.b, maskB1);
+    float maskR2 = smoothstep(-0.2, 0.6, f2R) * cursorMask;
+    float maskG2 = smoothstep(-0.2, 0.6, f2G) * cursorMask;
+    float maskB2 = smoothstep(-0.2, 0.6, f2B) * cursorMask;
+    
+    // Rich saturated inks
+    vec3 color1 = mix(uCursorLeftColor, uCursorRightColor, fG);
+    vec3 color2 = mix(uCursorUpColor, uCursorDownColor, f2G);
+    
+    // We compose the colored fluid separately for R, G, and B to get the rainbow edges
+    float finalR = mix(1.0, color1.r, maskR1) * mix(1.0, color2.r, maskR2 * 0.8);
+    float finalG = mix(1.0, color1.g, maskG1) * mix(1.0, color2.g, maskG2 * 0.8);
+    float finalB = mix(1.0, color1.b, maskB1) * mix(1.0, color2.b, maskB2 * 0.8);
     
     vec3 fluidColor = vec3(finalR, finalG, finalB);
     
@@ -188,7 +192,7 @@ void main() {
     
     vec3 finalColor = fluidColor * glassTint;
     
-    // Specular Highlights 
+    // Specular Highlights - scaled back slightly so they don't wash out the rich colors
     vec3 lightDir = normalize(vec3(-1.0, 1.0, 2.0)); 
     float specAmount = pow(max(dot(normal, lightDir), 0.0), 128.0);
     vec3 specular = vec3(1.0) * specAmount * 0.8; 
