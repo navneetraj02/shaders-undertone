@@ -37,7 +37,7 @@ class UndertonesShader {
     this.activeState = 1.0; // Start fully visible
     
     // Trail array for water effect
-    this.trailCount = 20;
+    this.trailCount = 30; // Increased length for stickiness
     this.trail = [];
     for(let i = 0; i < this.trailCount; i++) {
         this.trail.push(new THREE.Vector2(0.5, 0.5));
@@ -185,11 +185,12 @@ class UndertonesShader {
         // Smoothly interpolate mouse position for water feel
         this.mouse.lerp(this.targetMouse, 0.15);
         
-        // Update trail array
-        for(let i = this.trailCount - 1; i > 0; i--) {
-            this.trail[i].copy(this.trail[i-1]);
+        // Elastic sticky trail physics
+        this.trail[0].lerp(this.mouse, 0.8);
+        for(let i = 1; i < this.trailCount; i++) {
+            // Each point slowly pulls towards the point in front of it
+            this.trail[i].lerp(this.trail[i-1], 0.35);
         }
-        this.trail[0].copy(this.mouse);
         
         if (this.material.uniforms.uCursor) {
             this.material.uniforms.uCursor.value.copy(this.mouse);

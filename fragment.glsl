@@ -1,7 +1,7 @@
 uniform float uTime;
 uniform vec2 uResolution;
 uniform vec2 uCursor;
-uniform vec2 uTrail[20]; 
+uniform vec2 uTrail[30]; 
 uniform float uActive; // Controls idle fade out
 
 uniform vec3 uBackgroundColor;
@@ -97,7 +97,8 @@ void main() {
     vec2 rotSt = vUv * rot;
     
     float frequency = uFlutes * 2.0; 
-    float flutePhase = rotSt.x * frequency;
+    // Very slowly animate the glass lines drifting down-right!
+    float flutePhase = rotSt.x * frequency - uTime * 0.7;
     float fluteVal = sin(flutePhase);
     float fluteDerivative = cos(flutePhase);
     
@@ -107,14 +108,14 @@ void main() {
     
     // 3. WATER WAKE MASK
     float cursorMask = 0.0;
-    for(int i = 0; i < 20; i++) {
+    for(int i = 0; i < 30; i++) {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(st, trailPoint);
-        float age = float(i) / 20.0;
+        float age = float(i) / 30.0;
         float intensity = 1.0 - age;
         
         // Large smooth mask for the color
-        float radius = uCursorRadius * 0.35 * (1.0 - age * 0.3); 
+        float radius = uCursorRadius * 0.35 * (1.0 - age * 0.5); 
         cursorMask = max(cursorMask, smoothstep(radius, 0.0, d) * intensity);
     }
     
