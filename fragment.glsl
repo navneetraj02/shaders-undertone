@@ -126,55 +126,54 @@ void main() {
     float t = uTime * 0.1;
     
     // Intense physical refraction to bend the colours deeply like real thick glass
-    vec2 nSt = st + screenNormal * 0.6;
+    vec2 nSt = st + screenNormal * 0.8;
     
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
     
     // 5. INTENSE PURE COLORS (Separated by side)
     vec3 colorBlue = uCursorLeftColor;   // Dark blue
-    vec3 colorPurple = uCursorUpColor;   // Purple
+    vec3 colorPurple = uCursorUpColor;   // Dark Purple
     
     // Segregate colors: Left side is blue, Right side is purple.
-    // We add fluid noise to the boundary so the split looks like mixing liquid rather than a straight line.
     float boundary = vUv.x + (noise1 * 0.3);
     float mixFactor = smoothstep(0.2, 0.8, boundary);
     
-    // The fluid color is purely the gradient of those two colors!
     vec3 fluidColor = mix(colorBlue, colorPurple, mixFactor);
     
-    // 6. PERFECT ISOLATION RENDERING COMPOSITION
+    // 6. EXTREME PERMANENT GLASS RENDERING
     
-    // Pure white idle background
-    vec3 pureWhite = uBackgroundColor; 
-    
-    // Much deeper physical shadows to give the glass ridges intense 3D depth
+    // The glass structure is PERMANENTLY visible, even when idle!
+    // Deep physical shadows for the ridges
     float ao = smoothstep(-1.0, 1.0, fluteVal);
     vec3 glassTint = mix(vec3(0.2), vec3(1.0), ao); 
     
-    // The rich, fluid colors layered under the glass
-    vec3 vibrantFluid = fluidColor * 1.25;
-    vec3 coloredGlass = vibrantFluid * mix(vec3(0.65), vec3(1.0), ao);
+    // The base glass panel is white with shadows
+    vec3 baseGlass = uBackgroundColor * glassTint;
     
-    // Combine pure white with the colored/shadowed glass using the cursor mask
-    vec3 finalColor = mix(pureWhite, coloredGlass, cursorMask);
+    // The colored fluid is vibrant and has slightly lighter shadows so it pops
+    vec3 vibrantFluid = fluidColor * 1.5;
+    vec3 coloredGlass = vibrantFluid * mix(vec3(0.5), vec3(1.0), ao);
     
-    // Double specular lights for that rich, glossy, highly polished studio glass look!
+    // Combine base white glass with the colored fluid using the cursor mask
+    vec3 finalColor = mix(baseGlass, coloredGlass, cursorMask);
+    
+    // EXTREMELY sharp, blinding specular highlights for that "shiny look type proper"
     vec3 lightDir1 = normalize(vec3(-1.0, 1.0, 2.0)); 
-    float specAmount1 = pow(max(dot(normal, lightDir1), 0.0), 128.0);
+    float specAmount1 = pow(max(dot(normal, lightDir1), 0.0), 256.0); // Tighter exponent for shinier glass
     
     vec3 lightDir2 = normalize(vec3(1.0, -1.0, 1.0)); 
-    float specAmount2 = pow(max(dot(normal, lightDir2), 0.0), 64.0);
+    float specAmount2 = pow(max(dot(normal, lightDir2), 0.0), 128.0);
     
-    vec3 specular = vec3(1.0) * (specAmount1 * 2.5 + specAmount2 * 0.8);
+    // Specular is applied EVERYWHERE permanently to maintain the shiny glass look across the whole screen!
+    vec3 specular = vec3(1.0) * (specAmount1 * 3.5 + specAmount2 * 1.5);
     
     // Thick edge fresnel glow
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
-    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 3.0);
+    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 5.0);
     
-    // Specular and Fresnel are multiplied by cursorMask so they completely vanish into pure white when idle!
-    finalColor += specular * cursorMask;
-    finalColor += vec3(1.0) * fresnel * 0.5 * cursorMask;
+    finalColor += specular;
+    finalColor += vec3(1.0) * fresnel * 0.5;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
