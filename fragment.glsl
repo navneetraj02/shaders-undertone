@@ -131,19 +131,16 @@ void main() {
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
     
-    // 5. INTENSE PURE COLORS
+    // 5. INTENSE COLORS
     vec3 colorBlue = uCursorLeftColor;   
     vec3 colorPurple = uCursorUpColor;   
     vec3 colorCyan = uCursorRightColor;  
-    vec3 colorDark = uCursorDownColor;
     
     float maskBlue = smoothstep(-0.6, 0.6, noise1);
     float maskPurple = smoothstep(-0.4, 0.8, noise2);
     
-    // Start with pure blue instead of white! This eliminates the washed-out white gradient.
-    vec3 fluidColor = colorBlue; 
-    fluidColor = mix(fluidColor, colorDark, 1.0 - maskBlue); // Deep color in the valleys
-    fluidColor = mix(fluidColor, colorPurple, maskPurple);
+    vec3 fluidColor = mix(vec3(1.0), colorBlue, maskBlue);
+    fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.9);
     fluidColor = mix(fluidColor, colorCyan, maskPurple * maskBlue);
     
     // 6. PERFECT ISOLATION RENDERING COMPOSITION
