@@ -182,14 +182,14 @@ class UndertonesShader {
             this.activeState = Math.max(this.activeState - delta * 0.15, 0.0);
         }
         
-        // Smoothly interpolate mouse position for a responsive, fluid gliding feel
-        this.mouse.lerp(this.targetMouse, 0.12);
+        // Track the target mouse position instantly (no lag for the main glow center)
+        this.mouse.copy(this.targetMouse);
         
-        // Elastic sticky trail physics - speed increased to follow the cursor more closely
-        this.trail[0].lerp(this.mouse, 0.30);
+        // Elastic sticky trail physics - head follows instantly, trail follows responsively
+        this.trail[0].copy(this.mouse);
         for(let i = 1; i < this.trailCount; i++) {
-            // Each point pulls towards the point in front of it (0.12 lerp for responsive trail follow)
-            this.trail[i].lerp(this.trail[i-1], 0.12);
+            // Each point pulls towards the point in front of it (0.15 lerp for responsive trail follow)
+            this.trail[i].lerp(this.trail[i-1], 0.15);
         }
         
         if (this.material.uniforms.uCursor) {

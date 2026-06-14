@@ -129,13 +129,12 @@ void main() {
     vec2 dir = st - cursorSt;
     float len = length(dir);
     
-    // Re-enable and amplify the sharp, magnifying "pinched" spike under the cursor by dividing by length directly
-    vec2 bulgeDir = (len > 0.0) ? (dir / len) : vec2(0.0);
-    // Increased multiplier to 0.45 for a very pronounced pinched effect
-    float bulge = exp(-len * 1.1) * 0.45 * uActive;
+    // Smooth out the center divisor to eliminate the sharp "pinched" singularity at the cursor position
+    float smoothLen = len + 0.16; 
+    vec2 bulgeDisplacement = dir * (exp(-len * 1.1) * 0.45 * uActive) / smoothLen;
     
     // Smooth physical refraction + hover bulge (refraction set to 0.48 for deep tactile response)
-    vec2 nSt = st + screenNormal * 0.48 - bulgeDir * bulge;
+    vec2 nSt = st + screenNormal * 0.48 - bulgeDisplacement;
     
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
