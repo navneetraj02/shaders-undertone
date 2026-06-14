@@ -172,14 +172,14 @@ void main() {
     // Glassy reflections — tinted blue-grey like real glass, not blinding white
     vec3 lightDir = normalize(vec3(-0.5, 1.0, 2.0)); 
     float specAmount = pow(max(dot(normal, lightDir), 0.0), 64.0); // sharper, narrower
-    // Tint specular with cool glass colour instead of pure white (further reduced to 0.02)
-    vec3 specular = vec3(0.85, 0.90, 1.0) * specAmount * 0.02;
+    // Tint specular with cool glass colour instead of pure white (completely disabled to remove broad white glare)
+    vec3 specular = vec3(0.0);
     
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
     float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 3.0);
     
     finalColor += specular * cursorMask;
-    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.005 * cursorMask;
+    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.0 * cursorMask;
     
     // 7. GLASSY EDGE LINES (Border Lines)
     // Draw a single crisp, thin border line exactly at the flute troughs (valleys)
@@ -195,13 +195,13 @@ void main() {
     // Soft shadow line for 3D depth/groove appearance (approx 7 pixels wide)
     float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 3.5, distToBorder);
     
-    // Subtle 3D groove shadow to give depth to the flutes
-    finalColor = mix(finalColor, finalColor * 0.7, shadowLine * cursorMask);
+    // Deeper 3D groove shadow (mix with 0.55 instead of 0.70) to define the borders clearly without adding white glare
+    finalColor = mix(finalColor, finalColor * 0.55, shadowLine * cursorMask);
     
     // Glass highlight: cool glass color (light blue-grey) to feel like real glass shine
     vec3 glassLineColor = vec3(0.88, 0.93, 1.0);
-    // Set visibility to 0.10 (further reduced from 0.18) to make them extremely subtle, reflection-like
-    finalColor += glassLineColor * thinLine * 0.10 * cursorMask;
+    // Set visibility to 0.22 so that the thin border lines are crisp and clearly visible
+    finalColor += glassLineColor * thinLine * 0.22 * cursorMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
