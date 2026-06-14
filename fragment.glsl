@@ -90,21 +90,15 @@ void main() {
     vec2 cursorSt = uCursor * aspect;
     
     // 2. GLASS STRUCTURE
-    float angle = -20.0 * PI / 180.0; // Slanted from top-left to bottom-right
+    float angle = 20.0 * PI / 180.0;
     float s = sin(angle);
     float c = cos(angle);
     mat2 rot = mat2(c, -s, s, c);
     vec2 rotSt = vUv * rot;
     
     float frequency = uFlutes * 2.0; 
-    
-    // Interactive glass ridge warp/ripple hover effect (ripples the flutes under the cursor)
-    float distToCursor = distance(st, cursorSt);
-    float hoverWarp = exp(-distToCursor * 3.5) * 0.9 * uActive;
-    float ripple = sin(distToCursor * 16.0 - uTime * 5.0) * hoverWarp;
-    
-    // Very slowly animate the glass lines drifting down-right + apply hover ripple
-    float flutePhase = rotSt.x * frequency - uTime * 0.7 + ripple;
+    // Very slowly animate the glass lines drifting down-right!
+    float flutePhase = rotSt.x * frequency - uTime * 0.7;
     float fluteVal = sin(flutePhase);
     float fluteDerivative = cos(flutePhase);
     
@@ -112,24 +106,17 @@ void main() {
     vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
     vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
     
-    // 3. DIAGONAL RECTANGLE MASK FOR THE COLOR
+    // 3. WATER WAKE MASK
     float cursorMask = 0.0;
     for(int i = 0; i < 30; i++) {
-        vec2 trailPoint = uTrail[i];
-        vec2 rotTrailPoint = trailPoint * rot;
+        vec2 trailPoint = uTrail[i] * aspect;
+        float d = distance(st, trailPoint);
+        float age = float(i) / 30.0;
+        float intensity = 1.0 - age;
         
-        float distPerp = abs(rotSt.x - rotTrailPoint.x);
-        float distPara = abs(rotSt.y - rotTrailPoint.y);
-        
-        // Define half-width (across flutes) and half-length (along flutes) of the diagonal rectangle
-        float halfWidth = uCursorRadius * 0.16 * (1.0 - float(i)/30.0 * 0.4);
-        float halfLength = uCursorRadius * 0.48 * (1.0 - float(i)/30.0 * 0.4);
-        
-        float maskPerp = smoothstep(halfWidth, 0.0, distPerp);
-        float maskPara = smoothstep(halfLength, 0.0, distPara);
-        
-        float intensity = 1.0 - (float(i) / 30.0);
-        cursorMask = max(cursorMask, maskPerp * maskPara * intensity);
+        // Large smooth mask for the color
+        float radius = uCursorRadius * 0.35 * (1.0 - age * 0.5); 
+        cursorMask = max(cursorMask, smoothstep(radius, 0.0, d) * intensity);
     }
     
     // Fade out entirely when idle
@@ -138,8 +125,15 @@ void main() {
     // 4. SLEEK FLUID NOISE
     float t = uTime * 0.1;
     
-    // Smooth physical glass refraction (wavy/ripple hover effect is naturally applied to screenNormal via flutePhase)
-    vec2 nSt = st + screenNormal * 0.30;
+    // Add a tactile hover bulge/press effect to make the cursor feel interactive
+    vec2 dir = st - cursorSt;
+    float len = length(dir);
+    vec2 bulgeDir = (len > 0.0) ? (dir / len) : vec2(0.0);
+    // Widened and amplified bulge (decay set to 1.5, multiplier set to 0.22) for a massive pressing effect
+    float bulge = exp(-len * 1.5) * 0.22 * uActive;
+    
+    // Smooth physical refraction + hover bulge (refraction increased to 0.45 for deep tactile response)
+    vec2 nSt = st + screenNormal * 0.45 - bulgeDir * bulge;
     
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
@@ -188,12 +182,12 @@ void main() {
     // Rotate the 3D normal into screen space for physically accurate reflection
     vec3 screenNormal3D = vec3(screenNormal, normal.z);
     
-    // Sharp specular exponent (384.0) and moderate factor (0.16) for a nice reflection
-    float specAmount = pow(max(dot(screenNormal3D, halfDir), 0.0), 384.0);
+    // Extremely sharp specular exponent (512.0) and tiny factor (0.02) to create a subtle reflection-like glint
+    float specAmount = pow(max(dot(screenNormal3D, halfDir), 0.0), 512.0);
     
     // Restrict highlight to the peaks (ridges) of the flutes to create a stepped/zig-zag reflection
     float ridgeMask = smoothstep(0.3, 1.0, fluteVal);
-    vec3 specular = vec3(0.92, 0.96, 1.0) * specAmount * ridgeMask * 0.16;
+    vec3 specular = vec3(0.92, 0.96, 1.0) * specAmount * ridgeMask * 0.02;
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
