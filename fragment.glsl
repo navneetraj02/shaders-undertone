@@ -87,27 +87,10 @@ void main() {
     // 1. Setup coordinates
     vec2 aspect = vec2(uResolution.x / uResolution.y, 1.0);
     vec2 st = vUv * aspect;
-    vec2 cursorSt = uCursor * aspect;
     
-    // 2. GLASS STRUCTURE
-    float angle = 20.0 * PI / 180.0;
-    float s = sin(angle);
-    float c = cos(angle);
-    mat2 rot = mat2(c, -s, s, c);
-    vec2 rotSt = vUv * rot;
-    
-    float frequency = uFlutes * 2.0; 
-    // Very slowly animate the glass lines drifting down-right!
-    float flutePhase = rotSt.x * frequency - uTime * 0.7;
-    float fluteVal = sin(flutePhase);
-    float fluteDerivative = cos(flutePhase);
-    
-    // Strong proper normal for deep glass effect when visible
-    vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
-    vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
-    
-    // 3. WATER WAKE MASK
+    // 2. WATER WAKE MASK (Calculated first to power the magnification effect)
     float cursorMask = 0.0;
+    float hotCore = 0.0; // Captures the intense neon center
     for(int i = 0; i < 30; i++) {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(st, trailPoint);
@@ -116,16 +99,38 @@ void main() {
         
         // Large smooth mask for the color
         float radius = uCursorRadius * 0.35 * (1.0 - age * 0.5); 
-        cursorMask = max(cursorMask, smoothstep(radius, 0.0, d) * intensity);
+        float blob = smoothstep(radius, 0.0, d);
+        
+        // Pow makes the edges softer and the center thicker
+        cursorMask = max(cursorMask, pow(blob, 1.5) * intensity);
+        hotCore = max(hotCore, pow(blob, 4.0) * intensity);
     }
     
     // Fade out entirely when idle
     cursorMask *= smoothstep(0.0, 1.0, uActive);
+    hotCore *= smoothstep(0.0, 1.0, uActive);
+    
+    // 3. GLASS STRUCTURE (Now dynamically magnified by the cursor!)
+    float angle = 20.0 * PI / 180.0;
+    float s = sin(angle);
+    float c = cos(angle);
+    mat2 rot = mat2(c, -s, s, c);
+    vec2 rotSt = vUv * rot;
+    
+    float frequency = uFlutes * 2.0; 
+    // The cursor acts like a magnifying glass, physically bending the fluted lines beneath it!
+    float flutePhase = (rotSt.x - cursorMask * 0.05) * frequency - uTime * 0.7;
+    float fluteVal = sin(flutePhase);
+    float fluteDerivative = cos(flutePhase);
+    
+    // Strong proper normal for deep glass effect when visible
+    vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
+    vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
     
     // 4. SLEEK FLUID NOISE
     float t = uTime * 0.1;
     
-    // Use pure glass curvature
+    // Use pure glass curvature to distort the colors beneath
     vec2 nSt = st + screenNormal * 0.25;
     
     float noise1 = snoise(vec3(nSt * 1.5, t));
@@ -136,10 +141,11 @@ void main() {
     vec3 colorPurple = uCursorUpColor;   
     vec3 colorCyan = uCursorRightColor;  
     
+    // Widen the masks so the color fills more area and is highly visible
     float maskBlue = smoothstep(-0.6, 0.6, noise1);
     float maskPurple = smoothstep(-0.4, 0.8, noise2);
     
-    vec3 fluidColor = mix(vec3(1.0), colorBlue, maskBlue);
+    vec3 fluidColor = mix(uBackgroundColor, colorBlue, maskBlue);
     fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.9);
     fluidColor = mix(fluidColor, colorCyan, maskPurple * maskBlue);
     
@@ -154,6 +160,10 @@ void main() {
     
     // The rich, fluid colors layered under the glass
     vec3 vibrantFluid = fluidColor * 1.25;
+    
+    // Add an intense glowing neon core directly under the mouse
+    vibrantFluid = mix(vibrantFluid, vec3(1.0), hotCore * 0.7);
+    
     vec3 coloredGlass = vibrantFluid * mix(vec3(0.85), vec3(1.0), ao);
     
     // Combine pure white with the colored/shadowed glass using the cursor mask
