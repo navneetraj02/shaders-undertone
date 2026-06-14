@@ -19,7 +19,7 @@ class UndertonesShader {
     this.cursorRightColor = options.cursorRightColor || '#5b4fff';
     
     // Parameters
-    this.cursorRadius = options.cursorRadius !== undefined ? options.cursorRadius : 2.1;
+    this.cursorRadius = options.cursorRadius !== undefined ? options.cursorRadius : 2.4;
     this.flutes = options.flutes !== undefined ? options.flutes : 15.0; // Ridge density
     this.zIndex = options.zIndex !== undefined ? options.zIndex : -99;
     

@@ -180,12 +180,12 @@ void main() {
     // Rotate the 3D normal into screen space for physically accurate reflection
     vec3 screenNormal3D = vec3(screenNormal, normal.z);
     
-    // Micro specular glint: extremely sharp exponent (512.0) and tiny factor (0.01) to minimize white shiny radius
+    // Extremely sharp specular exponent (512.0) and tiny factor (0.0) to completely disable white shiny reflection
     float specAmount = pow(max(dot(screenNormal3D, halfDir), 0.0), 512.0);
     
     // Restrict highlight to the peaks (ridges) of the flutes to create a stepped/zig-zag reflection
     float ridgeMask = smoothstep(0.3, 1.0, fluteVal);
-    vec3 specular = vec3(0.92, 0.96, 1.0) * specAmount * ridgeMask * 0.01;
+    vec3 specular = vec3(0.0);
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
@@ -206,13 +206,13 @@ void main() {
     // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
     float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 1.6, distToBorder);
     
-    // Mild shadow mix (0.82 instead of 0.40) to keep the line single and clean
-    finalColor = mix(finalColor, finalColor * 0.82, shadowLine * cursorMask);
+    // Mild shadow mix (0.76 instead of 0.82) to keep the line single, clean, and defined
+    finalColor = mix(finalColor, finalColor * 0.76, shadowLine * cursorMask);
     
     // Glass highlight: blue-ish and purple-ish tint matching the screen side to avoid white shiny color
     vec3 borderLineColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), gradientFactor); 
-    // Set visibility to 0.45 to make the thin line properly and clearly visible
-    finalColor += borderLineColor * thinLine * 0.45 * cursorMask;
+    // Set visibility to 0.65 (increased from 0.45) so that the thin border lines are highly visible
+    finalColor += borderLineColor * thinLine * 0.65 * cursorMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
