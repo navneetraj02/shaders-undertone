@@ -137,18 +137,21 @@ void main() {
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
     
-    // 5. INTENSE COLORS
-    vec3 colorBlue = uCursorLeftColor;   
-    vec3 colorPurple = uCursorUpColor;   
-    vec3 colorCyan = uCursorRightColor;  
+    // 5. SPATIAL COLOR DISTRIBUTION
+    // Left side of the screen is blue, right side is purple
+    float colorTransition = smoothstep(0.35, 0.65, vUv.x);
+    // Add a subtle organic fluid wiggle to the boundary line
+    float noiseOffset = snoise(vec3(nSt * 1.0, t)) * 0.05;
+    float finalTransition = clamp(colorTransition + noiseOffset, 0.0, 1.0);
     
-    // Widen the masks so the color fills more area and is highly visible
-    float maskBlue = smoothstep(-0.6, 0.6, noise1);
-    float maskPurple = smoothstep(-0.4, 0.8, noise2);
+    // Left side: Blue shades (using Left and Down colors)
+    vec3 leftColor = mix(uCursorLeftColor, uCursorDownColor, smoothstep(-0.6, 0.6, noise1));
     
-    vec3 fluidColor = mix(uBackgroundColor, colorBlue, maskBlue);
-    fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.9);
-    fluidColor = mix(fluidColor, colorCyan, maskPurple * maskBlue);
+    // Right side: Purple shades (using Up and Right colors)
+    vec3 rightColor = mix(uCursorUpColor, uCursorRightColor, smoothstep(-0.6, 0.6, noise2));
+    
+    // Blend spatially across the screen
+    vec3 fluidColor = mix(leftColor, rightColor, finalTransition);
     
     // 6. TRUE GLASS RENDERING COMPOSITION
     
