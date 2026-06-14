@@ -125,8 +125,16 @@ void main() {
     // 4. SLEEK FLUID NOISE
     float t = uTime * 0.1;
     
-    // Smooth physical glass refraction (without the pinched UV bulge displacement following the cursor)
-    vec2 nSt = st + screenNormal * 0.48;
+    // Add a tactile hover bulge/press effect to make the cursor feel interactive
+    vec2 dir = st - cursorSt;
+    float len = length(dir);
+    
+    // Smooth out the center divisor to eliminate the sharp "pinched" singularity at the cursor position
+    float smoothLen = len + 0.16; 
+    vec2 bulgeDisplacement = dir * (exp(-len * 1.1) * 0.28 * uActive) / smoothLen;
+    
+    // Smooth physical refraction + hover bulge (refraction set to 0.48 for deep tactile response)
+    vec2 nSt = st + screenNormal * 0.48 - bulgeDisplacement;
     
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
