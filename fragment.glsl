@@ -141,13 +141,12 @@ void main() {
     vec3 colorBlue = uCursorLeftColor;   
     vec3 colorPurple = uCursorUpColor;   
     
-    // Combine noise to create a fluid mask, shifted lower to fill the area with color
-    float rawMask = smoothstep(-1.2, 0.0, noise1 * 0.5 + noise2 * 0.5);
-    // Clamp minimum to 0.88 so that only a tiny hint (12%) of white shows through, eliminating white patches
-    float fluidMask = mix(0.88, 1.0, rawMask);
+    // Combine noise to create a fluid mask
+    float fluidMask = smoothstep(-0.5, 0.7, noise1 * 0.5 + noise2 * 0.5);
     
     // Horizontal gradient factor (left = blue, right = purple) with organic wavy boundary
-    float gradientFactor = smoothstep(0.1, 0.9, vUv.x + noise1 * 0.18);
+    // Sharpened and centered so left is completely blue and right is completely purple
+    float gradientFactor = smoothstep(0.42, 0.58, vUv.x + noise1 * 0.08);
     vec3 gradientColor = mix(colorBlue, colorPurple, gradientFactor);
     
     // Mix background white with the dynamic gradient color
@@ -164,8 +163,8 @@ void main() {
     vec3 frostColor = mix(vec3(0.88, 0.90, 0.94), vec3(0.97, 0.98, 1.0), ao);
     vec3 baseGlass = frostColor;
     
-    // Let the fluid colour stay rich but don't overblooom
-    vec3 vibrantFluid = fluidColor * 1.1;
+    // Keep colors deep and dark
+    vec3 vibrantFluid = fluidColor;
     // In coloured areas the glass stays more transparent so colour shines through clearly
     vec3 coloredGlass = vibrantFluid * mix(vec3(0.92), vec3(1.0), ao);
     
@@ -181,12 +180,12 @@ void main() {
     // Rotate the 3D normal into screen space for physically accurate reflection
     vec3 screenNormal3D = vec3(screenNormal, normal.z);
     
-    // Extremely sharp specular exponent (180.0) for narrow glints
-    float specAmount = pow(max(dot(screenNormal3D, halfDir), 0.0), 180.0);
+    // Micro specular glint: extremely sharp exponent (512.0) and tiny factor (0.01) to minimize white shiny radius
+    float specAmount = pow(max(dot(screenNormal3D, halfDir), 0.0), 512.0);
     
     // Restrict highlight to the peaks (ridges) of the flutes to create a stepped/zig-zag reflection
     float ridgeMask = smoothstep(0.3, 1.0, fluteVal);
-    vec3 specular = vec3(0.92, 0.96, 1.0) * specAmount * ridgeMask * 0.04;
+    vec3 specular = vec3(0.92, 0.96, 1.0) * specAmount * ridgeMask * 0.01;
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
@@ -207,13 +206,13 @@ void main() {
     // Soft shadow line for 3D depth/groove appearance (approx 7 pixels wide)
     float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 3.5, distToBorder);
     
-    // Deeper 3D groove shadow (mix with 0.55 instead of 0.70) to define the borders clearly without adding white glare
-    finalColor = mix(finalColor, finalColor * 0.55, shadowLine * cursorMask);
+    // Deep 3D groove shadow (mix with 0.40 instead of 0.55) to define the borders clearly without adding white glare
+    finalColor = mix(finalColor, finalColor * 0.40, shadowLine * cursorMask);
     
-    // Glass highlight: cool glass color (light blue-grey) to feel like real glass shine
-    vec3 glassLineColor = vec3(0.88, 0.93, 1.0);
-    // Set visibility to 0.32 (increased from 0.18) so that the thin border lines are clearly visible
-    finalColor += glassLineColor * thinLine * 0.32 * cursorMask;
+    // Glass highlight: blue-ish and purple-ish tint matching the screen side to avoid white shiny color
+    vec3 borderLineColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), gradientFactor); 
+    // Set visibility to 0.40 to make the lines properly and clearly visible
+    finalColor += borderLineColor * thinLine * 0.40 * cursorMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
