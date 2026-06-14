@@ -169,17 +169,26 @@ void main() {
     // Combine pure white with the colored/shadowed glass using the cursor mask
     vec3 finalColor = mix(pureWhite, coloredGlass, cursorMask);
     
-    // Glassy reflections — tinted blue-grey like real glass, not blinding white
-    vec3 lightDir = normalize(vec3(-0.5, 1.0, 2.0)); 
-    float specAmount = pow(max(dot(normal, lightDir), 0.0), 64.0); // sharper, narrower
-    // Tint specular with cool glass colour instead of pure white (completely disabled to remove broad white glare)
-    vec3 specular = vec3(0.0);
-    
+    // Glassy reflections — dynamic zig-zag specular reflection that follows the cursor
+    vec3 lightVec = vec3(cursorSt - st, 0.20); 
+    vec3 lightDir = normalize(lightVec);
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
-    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 3.0);
+    vec3 halfDir = normalize(lightDir + viewDir);
+    
+    // Rotate the 3D normal into screen space for physically accurate reflection
+    vec3 screenNormal3D = vec3(screenNormal, normal.z);
+    
+    // Extremely sharp specular exponent (180.0) for narrow glints
+    float specAmount = pow(max(dot(screenNormal3D, halfDir), 0.0), 180.0);
+    
+    // Restrict highlight to the peaks (ridges) of the flutes to create a stepped/zig-zag reflection
+    float ridgeMask = smoothstep(0.3, 1.0, fluteVal);
+    vec3 specular = vec3(0.92, 0.96, 1.0) * specAmount * ridgeMask * 0.35;
+    
+    float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
     finalColor += specular * cursorMask;
-    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.0 * cursorMask;
+    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.002 * cursorMask;
     
     // 7. GLASSY EDGE LINES (Border Lines)
     // Draw a single crisp, thin border line exactly at the flute troughs (valleys)
@@ -200,8 +209,8 @@ void main() {
     
     // Glass highlight: cool glass color (light blue-grey) to feel like real glass shine
     vec3 glassLineColor = vec3(0.88, 0.93, 1.0);
-    // Set visibility to 0.22 so that the thin border lines are crisp and clearly visible
-    finalColor += glassLineColor * thinLine * 0.22 * cursorMask;
+    // Set visibility to 0.25 so that the thin border lines are crisp and clearly visible
+    finalColor += glassLineColor * thinLine * 0.25 * cursorMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
