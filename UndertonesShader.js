@@ -37,7 +37,7 @@ class UndertonesShader {
     this.activeState = 1.0; // Start fully visible
     
     // Trail array for water effect
-    this.trailCount = 30; // Increased length for stickiness
+    this.trailCount = 15; // Optimized for performance
     this.trail = [];
     for(let i = 0; i < this.trailCount; i++) {
         this.trail.push(new THREE.Vector2(0.5, 0.5));
