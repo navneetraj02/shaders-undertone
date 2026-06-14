@@ -199,20 +199,20 @@ void main() {
     float borderPhase = phaseNormalized + 0.25; // Shift to align with troughs
     float distToBorder = min(fract(borderPhase), 1.0 - fract(borderPhase));
     
-    // Constant screen-space width for thin border lines (approx 3.6 pixels wide)
+    // Constant screen-space width for thin border lines (approx 2 pixels wide)
     float fwNormalized = fwidth(borderPhase);
-    float thinLine = 1.0 - smoothstep(0.0, fwNormalized * 1.8, distToBorder);
+    float thinLine = 1.0 - smoothstep(0.0, fwNormalized * 1.0, distToBorder);
     
-    // Soft shadow line for 3D depth/groove appearance (approx 7 pixels wide)
-    float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 3.5, distToBorder);
+    // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
+    float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 1.6, distToBorder);
     
-    // Deep 3D groove shadow (mix with 0.40 instead of 0.55) to define the borders clearly without adding white glare
-    finalColor = mix(finalColor, finalColor * 0.40, shadowLine * cursorMask);
+    // Mild shadow mix (0.82 instead of 0.40) to keep the line single and clean
+    finalColor = mix(finalColor, finalColor * 0.82, shadowLine * cursorMask);
     
     // Glass highlight: blue-ish and purple-ish tint matching the screen side to avoid white shiny color
     vec3 borderLineColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), gradientFactor); 
-    // Set visibility to 0.40 to make the lines properly and clearly visible
-    finalColor += borderLineColor * thinLine * 0.40 * cursorMask;
+    // Set visibility to 0.45 to make the thin line properly and clearly visible
+    finalColor += borderLineColor * thinLine * 0.45 * cursorMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
