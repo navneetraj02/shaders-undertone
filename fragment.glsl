@@ -3,6 +3,7 @@ uniform vec2 uResolution;
 uniform vec2 uCursor;
 uniform vec2 uTrail[30]; 
 uniform float uActive; // Controls idle fade out
+uniform vec2 uVelocity; // Smoothed normalized cursor velocity
 
 uniform vec3 uBackgroundColor;
 uniform vec3 uCursorBaseColor;
@@ -131,66 +132,96 @@ void main() {
     vec2 bulgeDir = (len > 0.0) ? (dir / len) : vec2(0.0);
     float bulge = exp(-len * 3.5) * 0.04 * uActive;
     
-    // Smooth physical refraction + hover bulge
-    vec2 nSt = st + screenNormal * 0.25 - bulgeDir * bulge;
+    // Smooth physical refraction + hover bulge (increased refraction to 0.36 for deep glass look)
+    vec2 nSt = st + screenNormal * 0.36 - bulgeDir * bulge;
     
-    float noise1 = snoise(vec3(nSt * 1.5, t));
-    float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
+    // 5. DIRECTIONAL & SPATIAL COLOR MIXING (INDEPENDENT COLORS)
+    // Get direction from cursor to current pixel (refracted position)
+    vec2 toCursor = nSt - cursorSt;
+    float distToCursor = length(toCursor);
+    vec2 spatialDir = (distToCursor > 0.0001) ? (toCursor / distToCursor) : vec2(0.0);
     
-    // 5. INTENSE COLORS
-    vec3 colorBlue = uCursorLeftColor;   
-    vec3 colorPurple = uCursorUpColor;   
-    vec3 colorCyan = uCursorRightColor;  
+    // Add slow time-based rotation to the spatial direction so colors morph/rotate when stationary
+    float rotAngle = uTime * 0.3;
+    mat2 timeRot = mat2(cos(rotAngle), -sin(rotAngle), sin(rotAngle), cos(rotAngle));
+    vec2 morphedSpatialDir = timeRot * spatialDir;
     
-    // Widen the masks so the color fills more area and is highly visible
-    float maskBlue = smoothstep(-0.6, 0.6, noise1);
-    float maskPurple = smoothstep(-0.4, 0.8, noise2);
+    // Add organic noise perturbations to the color lookup direction
+    vec2 colorNoise = vec2(
+        snoise(vec3(nSt * 1.5, uTime * 0.15)),
+        snoise(vec3(nSt * 1.5, uTime * 0.15 + 20.0))
+    ) * 0.45;
     
-    vec3 fluidColor = mix(uBackgroundColor, colorBlue, maskBlue);
-    fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.9);
-    fluidColor = mix(fluidColor, colorCyan, maskPurple * maskBlue);
+    // Smoothly blend spatial direction with mouse velocity
+    // uVelocity represents the direction the cursor is moving
+    float speed = length(uVelocity);
+    vec2 combinedDir = mix(morphedSpatialDir, uVelocity, smoothstep(0.08, 0.45, speed));
+    
+    // Apply the noise perturbation to the final color wheel direction
+    vec2 finalDir = normalize(combinedDir + colorNoise + vec2(0.001));
+    
+    // Project direction onto the 4 color axes: Up, Down, Left, Right
+    float wUp = max(0.0, finalDir.y);
+    float wDown = max(0.0, -finalDir.y);
+    float wLeft = max(0.0, -finalDir.x);
+    float wRight = max(0.0, finalDir.x);
+    
+    float totalW = wUp + wDown + wLeft + wRight;
+    if (totalW > 0.0) {
+        wUp /= totalW;
+        wDown /= totalW;
+        wLeft /= totalW;
+        wRight /= totalW;
+    }
+    
+    // Blend the independent colors
+    vec3 fluidColor = wUp * uCursorUpColor + 
+                      wDown * uCursorDownColor + 
+                      wLeft * uCursorLeftColor + 
+                      wRight * uCursorRightColor;
     
     // 6. TRUE GLASS RENDERING COMPOSITION
     
     // Pure white idle background
     vec3 pureWhite = uBackgroundColor; 
     
-    // Soft Ambient Occlusion for elegant sleek web glass
+    // Frosted glass tint — cool light blue-grey, NOT pure white
     float ao = smoothstep(-1.0, 1.0, fluteVal);
-    vec3 glassTint = mix(vec3(0.85), vec3(1.0), ao); // elegant soft shadows
     
-    vec3 baseGlass = uBackgroundColor * glassTint;
-    
-    // Make fluid color incredibly bright so it shines OUT of the glass
-    vec3 vibrantFluid = fluidColor * 1.35; // Enhanced slightly more
-    vec3 coloredGlass = vibrantFluid * mix(vec3(0.95), vec3(1.0), ao);
+    // Deepen the fluted glass shadows/AO to define the ridges and reduce white wash
+    vec3 coloredGlass = fluidColor * mix(vec3(0.80, 0.83, 0.88), vec3(0.98, 0.99, 1.0), ao);
     
     // Combine pure white with the colored/shadowed glass using the cursor mask
     vec3 finalColor = mix(pureWhite, coloredGlass, cursorMask);
     
-    // Only apply glass reflections inside the active masked area
+    // Glassy reflections — tinted blue-grey like real glass, not blinding white
     vec3 lightDir = normalize(vec3(-0.5, 1.0, 2.0)); 
-    float specAmount = pow(max(dot(normal, lightDir), 0.0), 48.0);
-    vec3 specular = vec3(1.0) * specAmount * 0.8;
+    float specAmount = pow(max(dot(normal, lightDir), 0.0), 64.0); // sharper, narrower
+    // Tint specular with cool glass colour instead of pure white (and slightly brighten specular to 0.22)
+    vec3 specular = vec3(0.85, 0.90, 1.0) * specAmount * 0.22;
     
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
-    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.0);
+    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 3.0);
     
-    // Specular and Fresnel are multiplied by cursorMask so they completely vanish into pure white when idle!
     finalColor += specular * cursorMask;
-    finalColor += vec3(1.0) * fresnel * 0.25 * cursorMask;
+    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.08 * cursorMask;
     
-    // 7. GLASSY EDGE LINES on each diagonal strip
-    // A thin bright white highlight on each flute edge — like light catching the
-    // sharp corner of real glass. Multiplied by cursorMask so it's ONLY visible
-    // while the cursor is active, and fades to pure white when idle.
+    // 7. GLASSY EDGE LINES (Groove Border Effect)
+    // Draw a single border line at the flute troughs (where fluteVal = -1.0)
+    float borderDist = abs(fluteVal + 1.0);
     float fw2 = fwidth(flutePhase);
-    // One crisp bright line per flute edge (at the ridge peak, sin=1)
-    float glassEdge = 1.0 - smoothstep(0.0, fw2 * 0.6, abs(fluteDerivative - 0.0));
-    // Use fluteDerivative==0 detection for sharper edge: derivative = 0 at peaks & troughs
-    float peakEdge = 1.0 - smoothstep(0.0, fw2 * 0.7, abs(fluteVal * fluteVal - 1.0));
-    // Bright white specular glass glint — thin, sharp, glassy
-    finalColor += vec3(1.0) * peakEdge * 0.45 * cursorMask;
+    
+    // Thin sharp highlight line
+    float thinLine = 1.0 - smoothstep(0.0, fw2 * 1.3, borderDist);
+    // Soft shadow line to create depth
+    float shadowLine = 1.0 - smoothstep(0.0, fw2 * 2.8, borderDist);
+    
+    // Apply the 3D groove shadow inside the cursor active area to define the borders clearly
+    finalColor = mix(finalColor, finalColor * 0.6, shadowLine * cursorMask);
+    
+    // Add the bright glass highlight (tinted light blue-grey for glass realism)
+    vec3 glassLineColor = vec3(0.88, 0.93, 1.0);
+    finalColor += glassLineColor * thinLine * 0.35 * cursorMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
