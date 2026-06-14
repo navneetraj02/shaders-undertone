@@ -137,21 +137,19 @@ void main() {
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
     
-    // 5. SPATIAL COLOR DISTRIBUTION
-    // Left side of the screen is blue, right side is purple
-    float colorTransition = smoothstep(0.35, 0.65, vUv.x);
-    // Add a subtle organic fluid wiggle to the boundary line
-    float noiseOffset = snoise(vec3(nSt * 1.0, t)) * 0.05;
-    float finalTransition = clamp(colorTransition + noiseOffset, 0.0, 1.0);
+    // 5. HORIZONTALLY SEPARATED GRADIENT COLORS
+    vec3 colorBlue = uCursorLeftColor;   
+    vec3 colorPurple = uCursorUpColor;   
     
-    // Left side: Blue shades (using Left and Down colors)
-    vec3 leftColor = mix(uCursorLeftColor, uCursorDownColor, smoothstep(-0.6, 0.6, noise1));
+    // Combine noise to create a fluid mask
+    float fluidMask = smoothstep(-0.5, 0.7, noise1 * 0.5 + noise2 * 0.5);
     
-    // Right side: Purple shades (using Up and Right colors)
-    vec3 rightColor = mix(uCursorUpColor, uCursorRightColor, smoothstep(-0.6, 0.6, noise2));
+    // Horizontal gradient factor (left = blue, right = purple) with organic wavy boundary
+    float gradientFactor = smoothstep(0.1, 0.9, vUv.x + noise1 * 0.18);
+    vec3 gradientColor = mix(colorBlue, colorPurple, gradientFactor);
     
-    // Blend spatially across the screen
-    vec3 fluidColor = mix(leftColor, rightColor, finalTransition);
+    // Mix background white with the dynamic gradient color
+    vec3 fluidColor = mix(uBackgroundColor, gradientColor, fluidMask);
     
     // 6. TRUE GLASS RENDERING COMPOSITION
     
