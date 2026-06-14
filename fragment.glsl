@@ -141,8 +141,9 @@ void main() {
     vec3 colorBlue = uCursorLeftColor;   
     vec3 colorPurple = uCursorUpColor;   
     
-    // Combine noise to create a fluid mask
-    float fluidMask = smoothstep(-0.5, 0.7, noise1 * 0.5 + noise2 * 0.5);
+    // Combine noise to create a fluid mask (widen thresholds and add 0.35 minimum color density to prevent white wash)
+    float rawNoiseMask = smoothstep(-0.8, 0.4, noise1 * 0.5 + noise2 * 0.5);
+    float fluidMask = mix(0.35, 1.0, rawNoiseMask);
     
     // Horizontal gradient factor (left = blue, right = purple) with organic wavy boundary
     // Sharpened and centered so left is completely blue and right is completely purple
