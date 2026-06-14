@@ -19,7 +19,7 @@ class UndertonesShader {
     this.cursorRightColor = options.cursorRightColor || '#5b4fff';
     
     // Parameters
-    this.cursorRadius = options.cursorRadius !== undefined ? options.cursorRadius : 2.4;
+    this.cursorRadius = options.cursorRadius !== undefined ? options.cursorRadius : 2.0;
     this.flutes = options.flutes !== undefined ? options.flutes : 15.0; // Ridge density
     this.zIndex = options.zIndex !== undefined ? options.zIndex : -99;
     
@@ -182,14 +182,14 @@ class UndertonesShader {
             this.activeState = Math.max(this.activeState - delta * 0.10, 0.0);
         }
         
-        // Smoothly interpolate mouse position for slow, fluid gliding feel
-        this.mouse.lerp(this.targetMouse, 0.06);
+        // Set mouse position instantly to follow targetMouse
+        this.mouse.copy(this.targetMouse);
         
-        // Elastic sticky trail physics - highly slowed down for a long-lasting trailing ribbon
-        this.trail[0].lerp(this.mouse, 0.12);
+        // Elastic sticky trail physics - follow instantly
+        this.trail[0].copy(this.mouse);
         for(let i = 1; i < this.trailCount; i++) {
-            // Each point slowly pulls towards the point in front of it (0.06 lerp for long fluid trail)
-            this.trail[i].lerp(this.trail[i-1], 0.06);
+            // Fast lerp so trail follows instantly without lag
+            this.trail[i].lerp(this.trail[i-1], 0.82);
         }
         
         if (this.material.uniforms.uCursor) {
