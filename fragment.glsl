@@ -208,13 +208,16 @@ void main() {
     // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
     float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.8, distToBorder);
     
-    // Mild shadow mix (0.70 instead of 0.76) to keep the line single, clean, and defined
-    finalColor = mix(finalColor, finalColor * 0.70, shadowLine * cursorMask);
+    // Deeper shadow mix (0.70) across the entire screen (using uActive instead of cursorMask)
+    finalColor = mix(finalColor, finalColor * 0.70, shadowLine * uActive);
     
-    // Glass highlight: blue-ish and purple-ish tint matching the screen side to avoid white shiny color
-    vec3 borderLineColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), gradientFactor); 
-    // Set visibility to 0.90 so that the thin border lines are highly visible
-    finalColor += borderLineColor * thinLine * 0.90 * cursorMask;
+    // Glass highlight: blue-ish/purple-ish tint inside cursor mask, soft glassy grey outside
+    vec3 localBorderColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), gradientFactor);
+    vec3 baseGlassLine = vec3(0.85, 0.88, 0.92);
+    vec3 borderLineColor = mix(baseGlassLine, localBorderColor, cursorMask);
+    
+    // Set visibility to 0.65 across the entire screen (using uActive instead of cursorMask)
+    finalColor += borderLineColor * thinLine * 0.65 * uActive;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
