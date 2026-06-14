@@ -101,23 +101,26 @@ void main() {
     float flutePhase = rotSt.x * frequency - uTime * 0.7;
 
     // ---- SHARP FLAT PANEL GLASS ----
-    // fract gives position [0..1] inside each strip
     float stripPos = fract(flutePhase / (PI * 2.0));
 
-    // Crisp sharp border lines - thinner = more elegant
-    float borderWidth = 0.04;
+    // Very thin crisp border lines
+    float borderWidth = 0.02;
     float leftEdge  = smoothstep(0.0, borderWidth, stripPos);
     float rightEdge = smoothstep(1.0, 1.0 - borderWidth, stripPos);
-    float interior  = leftEdge * rightEdge; // 1 = inside panel, 0 = border
+    float interior  = leftEdge * rightEdge;
+    float fluteVal  = interior;
 
-    // Deeper shadow at the border for a strong glass panel look
-    float fluteVal = interior;
-
-    // Normal: flat inside each panel, strong kick at border for reflections
-    float edgeSign = (stripPos < 0.5) ? 1.0 : -1.0;
+    // Normal kicks sharply only at borders for clean edge reflections
+    float edgeSign  = (stripPos < 0.5) ? 1.0 : -1.0;
     float normalKick = (1.0 - interior) * edgeSign;
     vec3 normal = normalize(vec3(normalKick * 7.0, 0.0, 1.0));
     vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
+
+    // HOVER GLOW: cursor proximity brightens the glass lines around it
+    float cursorDist = distance(st, cursorSt);
+    float hoverGlow = exp(-cursorDist * 4.5) * uActive;
+    // The glow is strongest right on the border lines
+    float borderGlow = (1.0 - interior) * hoverGlow * 0.6;
     
     // 3. WATER WAKE MASK
     float cursorMask = 0.0;
@@ -138,13 +141,13 @@ void main() {
     // 4. SLEEK FLUID NOISE
     float t = uTime * 0.1;
     
-    // Stronger hover bulge effect for premium interactive feel
+    // Stronger hover bulge for premium interactive feel
     vec2 dir = st - cursorSt;
     float len = length(dir);
     vec2 bulgeDir = (len > 0.0) ? (dir / len) : vec2(0.0);
-    float bulge = exp(-len * 3.0) * 0.07 * uActive; // stronger bulge
+    float bulge = exp(-len * 3.0) * 0.07 * uActive;
     
-    // Refraction from glass panels + interactive hover bulge
+    // Glass refraction + hover bulge distortion
     vec2 nSt = st + screenNormal * 0.3 - bulgeDir * bulge;
     
     float noise1 = snoise(vec3(nSt * 1.5, t));
@@ -168,28 +171,29 @@ void main() {
     // Pure white idle background
     vec3 pureWhite = uBackgroundColor; 
     
-    // Sharp flat-panel AO: bright white inside panels, deep dark at borders
-    vec3 glassTint = mix(vec3(0.55), vec3(1.0), fluteVal); // deeper border shadow
-
+    // Deep dark borders, bright white panel interiors
+    vec3 glassTint = mix(vec3(0.50), vec3(1.0), fluteVal);
     vec3 baseGlass = uBackgroundColor * glassTint;
 
-    // Fluid colors shine through, borders stay dark/crisp
+    // Fluid colors shine through, borders stay dark and crisp
     vec3 vibrantFluid = fluidColor * 1.4;
-    vec3 coloredGlass = vibrantFluid * mix(vec3(0.75), vec3(1.0), fluteVal);
+    vec3 coloredGlass = vibrantFluid * mix(vec3(0.72), vec3(1.0), fluteVal);
     
-    // Combine pure white with the colored/shadowed glass
     vec3 finalColor = mix(pureWhite, coloredGlass, cursorMask);
     
-    // Strong specular at the border lines for a premium glass shine
+    // Sharp specular glint right on the border lines
     vec3 lightDir = normalize(vec3(-0.5, 1.0, 2.0)); 
-    float specAmount = pow(max(dot(normal, lightDir), 0.0), 32.0);
-    vec3 specular = vec3(1.0) * specAmount * 1.2; // brighter specular
+    float specAmount = pow(max(dot(normal, lightDir), 0.0), 28.0);
+    vec3 specular = vec3(1.0) * specAmount * 1.3;
     
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
-    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 1.5); // wider fresnel
+    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 1.5);
     
+    // Apply glass shine + the hover border glow effect
     finalColor += specular * cursorMask;
     finalColor += vec3(1.0) * fresnel * 0.4 * cursorMask;
+    // Hover glow lights up the border lines near the cursor even without color
+    finalColor += vec3(0.85, 0.90, 1.0) * borderGlow * (1.0 - cursorMask);
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
