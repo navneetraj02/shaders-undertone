@@ -160,7 +160,7 @@ void main() {
     // Add light blue in the top-left corner (vUv.x close to 0, vUv.y close to 1) with an organic wavy boundary
     float distToTopLeft = distance(vUv, vec2(0.0, 1.0));
     float topLeftMask = smoothstep(0.65, 0.15, distToTopLeft + noise2 * 0.06);
-    vec3 colorLightBlue = vec3(0.35, 0.75, 1.0); // Beautiful vibrant light blue
+    vec3 colorLightBlue = vec3(0.22, 0.58, 0.92); // Beautiful slightly deeper vibrant blue
     gradientColor = mix(gradientColor, colorLightBlue, topLeftMask);
     
     // Add a bottom-spanning purple gradient that transitions from light purple (bottom-left) 
