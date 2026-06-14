@@ -106,17 +106,24 @@ void main() {
     vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
     vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
     
-    // 3. WATER WAKE MASK
+    // 3. DIAGONAL RECTANGLE MASK FOR THE COLOR
     float cursorMask = 0.0;
     for(int i = 0; i < 30; i++) {
-        vec2 trailPoint = uTrail[i] * aspect;
-        float d = distance(st, trailPoint);
-        float age = float(i) / 30.0;
-        float intensity = 1.0 - age;
+        vec2 trailPoint = uTrail[i];
+        vec2 rotTrailPoint = trailPoint * rot;
         
-        // Large smooth mask for the color
-        float radius = uCursorRadius * 0.35 * (1.0 - age * 0.5); 
-        cursorMask = max(cursorMask, smoothstep(radius, 0.0, d) * intensity);
+        float distPerp = abs(rotSt.x - rotTrailPoint.x);
+        float distPara = abs(rotSt.y - rotTrailPoint.y);
+        
+        // Define half-width (across flutes) and half-length (along flutes) of the diagonal rectangle
+        float halfWidth = uCursorRadius * 0.16 * (1.0 - float(i)/30.0 * 0.4);
+        float halfLength = uCursorRadius * 0.48 * (1.0 - float(i)/30.0 * 0.4);
+        
+        float maskPerp = smoothstep(halfWidth, 0.0, distPerp);
+        float maskPara = smoothstep(halfLength, 0.0, distPara);
+        
+        float intensity = 1.0 - (float(i) / 30.0);
+        cursorMask = max(cursorMask, maskPerp * maskPara * intensity);
     }
     
     // Fade out entirely when idle
@@ -125,8 +132,14 @@ void main() {
     // 4. SLEEK FLUID NOISE
     float t = uTime * 0.1;
     
-    // Smooth physical glass refraction (without any bulge/hole magnifying effect)
-    vec2 nSt = st + screenNormal * 0.28;
+    // Subtle organic hover ripple distortion that activates under the cursor (no hole effect)
+    vec2 hoverDistort = vec2(
+        snoise(vec3(st * 4.0, uTime * 0.4)),
+        snoise(vec3(st * 4.0, uTime * 0.4 + 20.0))
+    ) * 0.03 * cursorMask;
+    
+    // Smooth physical glass refraction + organic hover distortion
+    vec2 nSt = st + screenNormal * 0.30 + hoverDistort;
     
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
@@ -175,12 +188,12 @@ void main() {
     // Rotate the 3D normal into screen space for physically accurate reflection
     vec3 screenNormal3D = vec3(screenNormal, normal.z);
     
-    // Extremely sharp specular exponent (512.0) and tiny factor (0.02) to create a subtle reflection-like glint
-    float specAmount = pow(max(dot(screenNormal3D, halfDir), 0.0), 512.0);
+    // Sharp specular exponent (384.0) and moderate factor (0.16) for a nice reflection
+    float specAmount = pow(max(dot(screenNormal3D, halfDir), 0.0), 384.0);
     
     // Restrict highlight to the peaks (ridges) of the flutes to create a stepped/zig-zag reflection
     float ridgeMask = smoothstep(0.3, 1.0, fluteVal);
-    vec3 specular = vec3(0.92, 0.96, 1.0) * specAmount * ridgeMask * 0.02;
+    vec3 specular = vec3(0.92, 0.96, 1.0) * specAmount * ridgeMask * 0.16;
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
