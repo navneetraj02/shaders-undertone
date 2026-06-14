@@ -106,11 +106,18 @@ void main() {
     vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
     vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
     
-    // 3. WATER WAKE MASK
+    // 3. WATER WAKE MASK (with organic fluid warping)
     float cursorMask = 0.0;
+    // Dynamic coordinate warping using noise to simulate organic fluid/water flow
+    vec2 fluidWarp = vec2(
+        snoise(vec3(st * 1.6, uTime * 0.25)),
+        snoise(vec3(st * 1.6, uTime * 0.25 + 25.0))
+    ) * 0.12 * uActive;
+    vec2 fluidSt = st + fluidWarp;
+    
     for(int i = 0; i < 30; i++) {
         vec2 trailPoint = uTrail[i] * aspect;
-        float d = distance(st, trailPoint);
+        float d = distance(fluidSt, trailPoint);
         float age = float(i) / 30.0;
         float intensity = 1.0 - age;
         
