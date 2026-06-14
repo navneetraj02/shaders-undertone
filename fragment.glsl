@@ -159,6 +159,12 @@ void main() {
     float gradientFactor = smoothstep(0.42, 0.58, vUv.x + noise1 * 0.08);
     vec3 gradientColor = mix(colorBlue, colorPurple, gradientFactor);
     
+    // Add light blue in the top-left corner (vUv.x close to 0, vUv.y close to 1) with an organic wavy boundary
+    float distToTopLeft = distance(vUv, vec2(0.0, 1.0));
+    float topLeftMask = smoothstep(0.65, 0.15, distToTopLeft + noise2 * 0.06);
+    vec3 colorLightBlue = vec3(0.35, 0.75, 1.0); // Beautiful vibrant light blue
+    gradientColor = mix(gradientColor, colorLightBlue, topLeftMask);
+    
     // Mix background white with the dynamic gradient color
     vec3 fluidColor = mix(uBackgroundColor, gradientColor, fluidMask);
     
