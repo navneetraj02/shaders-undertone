@@ -163,11 +163,13 @@ void main() {
     vec3 colorLightBlue = vec3(0.35, 0.75, 1.0); // Beautiful vibrant light blue
     gradientColor = mix(gradientColor, colorLightBlue, topLeftMask);
     
-    // Add a very small amount of purple in the bottom-left corner (vUv.x close to 0, vUv.y close to 0)
-    float distToBottomLeft = distance(vUv, vec2(0.0, 0.0));
-    float bottomLeftMask = smoothstep(0.32, 0.08, distToBottomLeft + noise1 * 0.04);
-    vec3 colorPurpleCorner = vec3(0.48, 0.20, 0.90); // Beautiful vibrant purple
-    gradientColor = mix(gradientColor, colorPurpleCorner, bottomLeftMask);
+    // Add a bottom-spanning purple gradient that transitions from light purple (bottom-left) 
+    // to dark purple (bottom-middle and bottom-right)
+    float bottomMask = smoothstep(0.35, 0.0, vUv.y + noise1 * 0.05);
+    float bottomXFactor = smoothstep(0.0, 0.6, vUv.x + noise2 * 0.04);
+    vec3 colorLightPurple = vec3(0.60, 0.32, 0.94); // Light purple (not too much light)
+    vec3 bottomPurpleColor = mix(colorLightPurple, colorPurple, bottomXFactor);
+    gradientColor = mix(gradientColor, bottomPurpleColor, bottomMask);
     
     // Mix background white with the dynamic gradient color
     vec3 fluidColor = mix(uBackgroundColor, gradientColor, fluidMask);
