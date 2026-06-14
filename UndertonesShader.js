@@ -19,7 +19,7 @@ class UndertonesShader {
     this.cursorRightColor = options.cursorRightColor || '#5b4fff';
     
     // Parameters
-    this.cursorRadius = options.cursorRadius !== undefined ? options.cursorRadius : 3.5;
+    this.cursorRadius = options.cursorRadius !== undefined ? options.cursorRadius : 2.2;
     this.flutes = options.flutes !== undefined ? options.flutes : 15.0; // Ridge density
     this.zIndex = options.zIndex !== undefined ? options.zIndex : -99;
     
@@ -32,14 +32,12 @@ class UndertonesShader {
     // Mouse tracking state for the color mask
     this.mouse = new THREE.Vector2(0.5, 0.5);
     this.targetMouse = new THREE.Vector2(0.5, 0.5);
-    this.prevMouse = new THREE.Vector2(0.5, 0.5);
-    this.velocity = new THREE.Vector2(0, 0);     // smoothed normalized direction
     
     // Idle fading state
     this.activeState = 1.0; // Start fully visible
     
     // Trail array for water effect
-    this.trailCount = 30;
+    this.trailCount = 30; // Increased length for stickiness
     this.trail = [];
     for(let i = 0; i < this.trailCount; i++) {
         this.trail.push(new THREE.Vector2(0.5, 0.5));
@@ -102,7 +100,6 @@ class UndertonesShader {
         uCursor: { value: this.mouse },
         uTrail: { value: this.trail },
         uActive: { value: this.activeState },
-        uVelocity: { value: this.velocity },
         uCursorRadius: { value: this.cursorRadius },
         uFlutes: { value: this.flutes },
         uBackgroundColor: { value: new THREE.Color(this.backgroundColor) },
@@ -187,21 +184,11 @@ class UndertonesShader {
         
         // Smoothly interpolate mouse position for water feel
         this.mouse.lerp(this.targetMouse, 0.15);
-
-        // Compute smoothed normalized velocity (cursor direction)
-        const rawVelX = this.mouse.x - this.prevMouse.x;
-        const rawVelY = this.mouse.y - this.prevMouse.y;
-        const velLen = Math.sqrt(rawVelX * rawVelX + rawVelY * rawVelY);
-        const normX = velLen > 0.00005 ? rawVelX / velLen : 0;
-        const normY = velLen > 0.00005 ? rawVelY / velLen : 0;
-        // Smoothly transition direction so colors blend naturally
-        this.velocity.x += (normX - this.velocity.x) * 0.12;
-        this.velocity.y += (normY - this.velocity.y) * 0.12;
-        this.prevMouse.copy(this.mouse);
         
         // Elastic sticky trail physics
         this.trail[0].lerp(this.mouse, 0.8);
         for(let i = 1; i < this.trailCount; i++) {
+            // Each point slowly pulls towards the point in front of it
             this.trail[i].lerp(this.trail[i-1], 0.35);
         }
         
@@ -209,7 +196,6 @@ class UndertonesShader {
             this.material.uniforms.uCursor.value.copy(this.mouse);
             this.material.uniforms.uTrail.value = this.trail;
             this.material.uniforms.uActive.value = this.activeState;
-            this.material.uniforms.uVelocity.value.set(this.velocity.x, this.velocity.y);
         }
     }
 
