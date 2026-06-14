@@ -89,14 +89,30 @@ void main() {
     vec2 st = vUv * aspect;
     vec2 cursorSt = uCursor * aspect;
     
-    // 2. GLASS STRUCTURE SETUP
-    float angle = -20.0 * PI / 180.0; // Rotate from top-left to bottom-right facing
+    // 2. GLASS STRUCTURE
+    float angle = -20.0 * PI / 180.0; // Slanted from top-left to bottom-right
     float s = sin(angle);
     float c = cos(angle);
     mat2 rot = mat2(c, -s, s, c);
     vec2 rotSt = vUv * rot;
     
-    // 3. DIAGONAL RECTANGLE MASK FOR THE COLOR (Declared first so it can be used for wavy distortion)
+    float frequency = uFlutes * 2.0; 
+    
+    // Interactive glass ridge warp/ripple hover effect (ripples the flutes under the cursor)
+    float distToCursor = distance(st, cursorSt);
+    float hoverWarp = exp(-distToCursor * 3.5) * 0.9 * uActive;
+    float ripple = sin(distToCursor * 16.0 - uTime * 5.0) * hoverWarp;
+    
+    // Very slowly animate the glass lines drifting down-right + apply hover ripple
+    float flutePhase = rotSt.x * frequency - uTime * 0.7 + ripple;
+    float fluteVal = sin(flutePhase);
+    float fluteDerivative = cos(flutePhase);
+    
+    // Strong proper normal for deep glass effect when visible
+    vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
+    vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
+    
+    // 3. DIAGONAL RECTANGLE MASK FOR THE COLOR
     float cursorMask = 0.0;
     for(int i = 0; i < 30; i++) {
         vec2 trailPoint = uTrail[i];
@@ -119,29 +135,11 @@ void main() {
     // Fade out entirely when idle
     cursorMask *= smoothstep(0.0, 1.0, uActive);
     
-    // 4. GLASS RIDGE DYNAMICS (with wavy hover distortion)
-    float frequency = uFlutes * 2.0; 
-    // Add a highly visible, fluid wavy hover distortion to the flutes under the cursor
-    float waveDistort = sin(rotSt.y * 12.0 + uTime * 6.0) * 0.08 * cursorMask;
-    float flutePhase = (rotSt.x + waveDistort) * frequency - uTime * 0.7;
-    float fluteVal = sin(flutePhase);
-    float fluteDerivative = cos(flutePhase);
-    
-    // Strong proper normal for deep glass effect when visible
-    vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
-    vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
-    
-    // 5. SLEEK FLUID NOISE
+    // 4. SLEEK FLUID NOISE
     float t = uTime * 0.1;
     
-    // Subtle organic hover ripple distortion that activates under the cursor (no hole effect)
-    vec2 hoverDistort = vec2(
-        snoise(vec3(st * 4.0, uTime * 0.4)),
-        snoise(vec3(st * 4.0, uTime * 0.4 + 20.0))
-    ) * 0.03 * cursorMask;
-    
-    // Smooth physical glass refraction + organic hover distortion
-    vec2 nSt = st + screenNormal * 0.30 + hoverDistort;
+    // Smooth physical glass refraction (wavy/ripple hover effect is naturally applied to screenNormal via flutePhase)
+    vec2 nSt = st + screenNormal * 0.30;
     
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
