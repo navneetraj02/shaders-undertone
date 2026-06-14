@@ -97,13 +97,27 @@ void main() {
     vec2 rotSt = vUv * rot;
     
     float frequency = uFlutes * 2.0; 
-    // Very slowly animate the glass lines drifting down-right!
+    // Slowly animate the glass panels drifting down-right
     float flutePhase = rotSt.x * frequency - uTime * 0.7;
-    float fluteVal = sin(flutePhase);
-    float fluteDerivative = cos(flutePhase);
-    
-    // Strong proper normal for deep glass effect when visible
-    vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
+
+    // ---- SHARP FLAT PANEL GLASS ----
+    // fract gives position [0..1] inside each strip
+    float stripPos = fract(flutePhase / (PI * 2.0));
+
+    // Thin sharp border lines at each edge of a panel
+    float borderWidth = 0.055; // thickness of the visible border line
+    float leftEdge  = smoothstep(0.0, borderWidth, stripPos);
+    float rightEdge = smoothstep(1.0, 1.0 - borderWidth, stripPos);
+    float interior  = leftEdge * rightEdge; // 1 = inside panel, 0 = border
+
+    // AO: panels are bright white inside, slightly shadowed at borders
+    float fluteVal = interior;
+
+    // Normal: flat inside each panel, gentle kick only at the border edge
+    // This gives clean light reflection along the border lines
+    float edgeSign = (stripPos < 0.5) ? 1.0 : -1.0;
+    float normalKick = (1.0 - interior) * edgeSign;
+    vec3 normal = normalize(vec3(normalKick * 5.0, 0.0, 1.0));
     vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
     
     // 3. WATER WAKE MASK
@@ -150,40 +164,35 @@ void main() {
     fluidColor = mix(fluidColor, colorPurple, maskPurple * 0.9);
     fluidColor = mix(fluidColor, colorCyan, maskPurple * maskBlue);
     
-    // 6. FINAL COMPOSITION
+    // 6. TRUE GLASS RENDERING COMPOSITION
     
-    // --- GLOBAL GLASS LINES (always visible across entire screen) ---
-    float ao = smoothstep(-1.0, 1.0, fluteVal);
+    // Pure white idle background
+    vec3 pureWhite = uBackgroundColor; 
     
-    // Strong sharp line groove shadow
-    float grooveShadow = 1.0 - ao;                           // dark in valleys
-    float ridgeHighlight = pow(max(fluteVal, 0.0), 3.0);     // bright on ridges
-    
-    // Base glass — strong visible lines on pure white background
-    vec3 baseGlass = uBackgroundColor;
-    baseGlass -= vec3(0.22) * grooveShadow;    // deep shadow in groove = visible dark lines
-    baseGlass += vec3(0.12) * ridgeHighlight;  // bright highlight on ridge peaks
-    baseGlass = clamp(baseGlass, 0.0, 1.0);
-    
-    // --- CURSOR COLOR (only where cursor is) ---
+    // Sharp flat-panel AO: panels = bright white, borders = thin dark line
+    // fluteVal is already 0..1 (1=interior, 0=border)
+    vec3 glassTint = mix(vec3(0.72), vec3(1.0), fluteVal);
+
+    vec3 baseGlass = uBackgroundColor * glassTint;
+
+    // Fluid colors shine through the glass, borders stay dark/sharp
     vec3 vibrantFluid = fluidColor * 1.35;
-    vec3 coloredGlass = vibrantFluid * mix(vec3(0.88), vec3(1.0), ao);
+    vec3 coloredGlass = vibrantFluid * mix(vec3(0.82), vec3(1.0), fluteVal);
     
-    // Lines always visible, colors only inside cursor mask
-    vec3 finalColor = mix(baseGlass, coloredGlass, cursorMask);
+    // Combine pure white with the colored/shadowed glass using the cursor mask
+    vec3 finalColor = mix(pureWhite, coloredGlass, cursorMask);
     
-    // Specular highlights on ridge peaks — globally visible + extra bright inside cursor
+    // Only apply glass reflections inside the active masked area
     vec3 lightDir = normalize(vec3(-0.5, 1.0, 2.0)); 
-    float specAmount = pow(max(dot(normal, lightDir), 0.0), 32.0);
-    finalColor += vec3(1.0) * specAmount * 0.18;
-    finalColor += vec3(1.0) * specAmount * 0.5 * cursorMask;
+    float specAmount = pow(max(dot(normal, lightDir), 0.0), 48.0);
+    vec3 specular = vec3(1.0) * specAmount * 0.8;
     
-    // Fresnel rim glow on line edges — globally visible
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
     float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.0);
-    finalColor += vec3(1.0) * fresnel * 0.12;
-    finalColor += vec3(1.0) * fresnel * 0.2 * cursorMask;
     
-    finalColor = clamp(finalColor, 0.0, 1.0);
+    // Specular and Fresnel are multiplied by cursorMask so they completely vanish into pure white when idle!
+    finalColor += specular * cursorMask;
+    finalColor += vec3(1.0) * fresnel * 0.25 * cursorMask;
+    
     gl_FragColor = vec4(finalColor, 1.0);
 }
