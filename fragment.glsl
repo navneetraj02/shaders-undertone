@@ -89,22 +89,17 @@ void main() {
     vec2 st = vUv * aspect;
     vec2 cursorSt = uCursor * aspect;
     
-    // 2. GLASS STRUCTURE
+    // 2. STABLE BASE GLASS STRUCTURE (for normal calculation)
     float angle = 20.0 * PI / 180.0;
     float s = sin(angle);
     float c = cos(angle);
     mat2 rot = mat2(c, -s, s, c);
-    vec2 rotSt = vUv * rot;
     
     float frequency = uFlutes * 2.0; 
-    // Very slowly animate the glass lines drifting down-right!
-    float flutePhase = rotSt.x * frequency - uTime * 0.7;
-    float fluteVal = sin(flutePhase);
-    float fluteDerivative = cos(flutePhase);
-    
-    // Strong proper normal for deep glass effect when visible
-    vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
-    vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
+    float baseFlutePhase = (vUv * rot).x * frequency - uTime * 0.7;
+    float baseFluteDerivative = cos(baseFlutePhase);
+    vec3 baseNormal = normalize(vec3(baseFluteDerivative * 4.0, 0.0, 1.0));
+    vec2 baseScreenNormal = (vec2(baseNormal.x, baseNormal.y) * rot);
     
     // 3. WATER WAKE MASK
     float cursorMask = 0.0;
@@ -122,21 +117,31 @@ void main() {
     // Fade out entirely when idle
     cursorMask *= smoothstep(0.0, 1.0, uActive);
     
-    // 4. SLEEK FLUID NOISE
-    float t = uTime * 0.1;
-    
-    // Add a tactile hover bulge/press effect to make the cursor feel interactive
+    // 4. PRESS & GLASS REFRACTION DISPLACEMENT
     vec2 dir = st - cursorSt;
     float len = length(dir);
     vec2 bulgeDir = (len > 0.0) ? (dir / len) : vec2(0.0);
-    // Increased bulge factor to 0.08 for a pronounced physical "pressing" effect
-    float bulge = exp(-len * 3.5) * 0.08 * uActive;
+    // Highly increased bulge factor (0.16) for a very strong physical "pressing" indentation
+    float bulge = exp(-len * 3.5) * 0.16 * uActive;
     
-    // Smooth physical refraction + hover bulge (refraction increased to 0.36 for deep tactile response)
-    vec2 nSt = st + screenNormal * 0.36 - bulgeDir * bulge;
+    // Dynamic refracted UV coordinates that apply to both color and glass lines!
+    // Shift is scaled by uActive & cursorMask for seamless transition
+    vec2 refractedVuv = vUv + baseScreenNormal * 0.38 * cursorMask - (bulgeDir * bulge / aspect) * cursorMask;
+    vec2 refractedSt = refractedVuv * aspect;
     
-    float noise1 = snoise(vec3(nSt * 1.5, t));
-    float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
+    // 4b. DYNAMIC WARPED GLASS STRUCTURE
+    // Re-evaluate flutes using refracted UVs so that the lines bend and move under the cursor!
+    float flutePhase = (refractedVuv * rot).x * frequency - uTime * 0.7;
+    float fluteVal = sin(flutePhase);
+    float fluteDerivative = cos(flutePhase);
+    
+    vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
+    vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
+    
+    // 4c. SLEEK FLUID NOISE (using refracted coordinate)
+    float t = uTime * 0.1;
+    float noise1 = snoise(vec3(refractedSt * 1.5, t));
+    float noise2 = snoise(vec3(refractedSt * 2.5, t * 1.3 + 10.0));
     
     // 5. HORIZONTALLY SEPARATED GRADIENT COLORS
     vec3 colorBlue = uCursorLeftColor;   
