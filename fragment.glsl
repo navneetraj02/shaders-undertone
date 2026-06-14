@@ -97,30 +97,14 @@ void main() {
     vec2 rotSt = vUv * rot;
     
     float frequency = uFlutes * 2.0; 
-    // Slowly animate the glass panels drifting down-right
+    // Very slowly animate the glass lines drifting down-right!
     float flutePhase = rotSt.x * frequency - uTime * 0.7;
-
-    // ---- SHARP FLAT PANEL GLASS ----
-    float stripPos = fract(flutePhase / (PI * 2.0));
-
-    // Very thin crisp border lines
-    float borderWidth = 0.02;
-    float leftEdge  = smoothstep(0.0, borderWidth, stripPos);
-    float rightEdge = smoothstep(1.0, 1.0 - borderWidth, stripPos);
-    float interior  = leftEdge * rightEdge;
-    float fluteVal  = interior;
-
-    // Normal kicks sharply only at borders for clean edge reflections
-    float edgeSign  = (stripPos < 0.5) ? 1.0 : -1.0;
-    float normalKick = (1.0 - interior) * edgeSign;
-    vec3 normal = normalize(vec3(normalKick * 7.0, 0.0, 1.0));
+    float fluteVal = sin(flutePhase);
+    float fluteDerivative = cos(flutePhase);
+    
+    // Strong proper normal for deep glass effect when visible
+    vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
     vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
-
-    // HOVER GLOW: cursor proximity brightens the glass lines around it
-    float cursorDist = distance(st, cursorSt);
-    float hoverGlow = exp(-cursorDist * 4.5) * uActive;
-    // The glow is strongest right on the border lines
-    float borderGlow = (1.0 - interior) * hoverGlow * 0.6;
     
     // 3. WATER WAKE MASK
     float cursorMask = 0.0;
@@ -141,14 +125,14 @@ void main() {
     // 4. SLEEK FLUID NOISE
     float t = uTime * 0.1;
     
-    // Stronger hover bulge for premium interactive feel
+    // Add a subtle hover bulge effect to make the cursor feel interactive
     vec2 dir = st - cursorSt;
     float len = length(dir);
     vec2 bulgeDir = (len > 0.0) ? (dir / len) : vec2(0.0);
-    float bulge = exp(-len * 3.0) * 0.07 * uActive;
+    float bulge = exp(-len * 3.5) * 0.04 * uActive;
     
-    // Glass refraction + hover bulge distortion
-    vec2 nSt = st + screenNormal * 0.3 - bulgeDir * bulge;
+    // Smooth physical refraction + hover bulge
+    vec2 nSt = st + screenNormal * 0.25 - bulgeDir * bulge;
     
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
@@ -171,29 +155,42 @@ void main() {
     // Pure white idle background
     vec3 pureWhite = uBackgroundColor; 
     
-    // Deep dark borders, bright white panel interiors
-    vec3 glassTint = mix(vec3(0.50), vec3(1.0), fluteVal);
-    vec3 baseGlass = uBackgroundColor * glassTint;
-
-    // Fluid colors shine through, borders stay dark and crisp
-    vec3 vibrantFluid = fluidColor * 1.4;
-    vec3 coloredGlass = vibrantFluid * mix(vec3(0.72), vec3(1.0), fluteVal);
+    // Soft Ambient Occlusion for elegant sleek web glass
+    float ao = smoothstep(-1.0, 1.0, fluteVal);
+    vec3 glassTint = mix(vec3(0.85), vec3(1.0), ao); // elegant soft shadows
     
+    vec3 baseGlass = uBackgroundColor * glassTint;
+    
+    // Make fluid color incredibly bright so it shines OUT of the glass
+    vec3 vibrantFluid = fluidColor * 1.35; // Enhanced slightly more
+    vec3 coloredGlass = vibrantFluid * mix(vec3(0.95), vec3(1.0), ao);
+    
+    // Combine pure white with the colored/shadowed glass using the cursor mask
     vec3 finalColor = mix(pureWhite, coloredGlass, cursorMask);
     
-    // Sharp specular glint right on the border lines
+    // Only apply glass reflections inside the active masked area
     vec3 lightDir = normalize(vec3(-0.5, 1.0, 2.0)); 
-    float specAmount = pow(max(dot(normal, lightDir), 0.0), 28.0);
-    vec3 specular = vec3(1.0) * specAmount * 1.3;
+    float specAmount = pow(max(dot(normal, lightDir), 0.0), 48.0);
+    vec3 specular = vec3(1.0) * specAmount * 0.8;
     
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
-    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 1.5);
+    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.0);
     
-    // Apply glass shine + the hover border glow effect
+    // Specular and Fresnel are multiplied by cursorMask so they completely vanish into pure white when idle!
     finalColor += specular * cursorMask;
-    finalColor += vec3(1.0) * fresnel * 0.4 * cursorMask;
-    // Hover glow lights up the border lines near the cursor even without color
-    finalColor += vec3(0.85, 0.90, 1.0) * borderGlow * (1.0 - cursorMask);
+    finalColor += vec3(1.0) * fresnel * 0.25 * cursorMask;
+    
+    // 7. GLASSY EDGE LINES on each diagonal strip
+    // A thin bright white highlight on each flute edge — like light catching the
+    // sharp corner of real glass. Multiplied by cursorMask so it's ONLY visible
+    // while the cursor is active, and fades to pure white when idle.
+    float fw2 = fwidth(flutePhase);
+    // One crisp bright line per flute edge (at the ridge peak, sin=1)
+    float glassEdge = 1.0 - smoothstep(0.0, fw2 * 0.6, abs(fluteDerivative - 0.0));
+    // Use fluteDerivative==0 detection for sharper edge: derivative = 0 at peaks & troughs
+    float peakEdge = 1.0 - smoothstep(0.0, fw2 * 0.7, abs(fluteVal * fluteVal - 1.0));
+    // Bright white specular glass glint — thin, sharp, glassy
+    finalColor += vec3(1.0) * peakEdge * 0.45 * cursorMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
