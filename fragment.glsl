@@ -194,25 +194,25 @@ void main() {
     finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.0 * cursorMask;
     
     // 7. GLASSY EDGE LINES (Border Lines)
-    // Draw a single crisp, thin border line exactly at the flute troughs (valleys)
+    // Draw crisp, thin border lines at both peaks (ridges) and troughs (valleys) of the flutes
     // using screen-space derivatives for a perfectly uniform pixel width.
     float phaseNormalized = flutePhase / (2.0 * PI);
-    float borderPhase = phaseNormalized + 0.25; // Shift to align with troughs
+    float borderPhase = phaseNormalized * 2.0 + 0.5; // Double frequency, aligned to peaks and troughs
     float distToBorder = min(fract(borderPhase), 1.0 - fract(borderPhase));
     
     // Constant screen-space width for thin border lines (approx 2 pixels wide)
     float fwNormalized = fwidth(borderPhase);
-    float thinLine = 1.0 - smoothstep(0.0, fwNormalized * 1.0, distToBorder);
+    float thinLine = 1.0 - smoothstep(0.0, fwNormalized * 0.5, distToBorder);
     
     // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
-    float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 1.6, distToBorder);
+    float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.8, distToBorder);
     
-    // Deeper shadow mix (0.70 instead of 0.76) to define the borders clearly without adding white glare
+    // Mild shadow mix (0.70 instead of 0.76) to keep the line single, clean, and defined
     finalColor = mix(finalColor, finalColor * 0.70, shadowLine * cursorMask);
     
     // Glass highlight: blue-ish and purple-ish tint matching the screen side to avoid white shiny color
     vec3 borderLineColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), gradientFactor); 
-    // Set visibility to 0.90 (increased from 0.65) so that the thin border lines are highly visible
+    // Set visibility to 0.90 so that the thin border lines are highly visible
     finalColor += borderLineColor * thinLine * 0.90 * cursorMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
