@@ -184,12 +184,12 @@ void main() {
     
     // Restrict highlight to the peaks (ridges) of the flutes to create a stepped/zig-zag reflection
     float ridgeMask = smoothstep(0.3, 1.0, fluteVal);
-    vec3 specular = vec3(0.92, 0.96, 1.0) * specAmount * ridgeMask * 0.35;
+    vec3 specular = vec3(0.92, 0.96, 1.0) * specAmount * ridgeMask * 0.14;
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
     finalColor += specular * cursorMask;
-    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.002 * cursorMask;
+    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.0 * cursorMask;
     
     // 7. GLASSY EDGE LINES (Border Lines)
     // Draw a single crisp, thin border line exactly at the flute troughs (valleys)
@@ -210,8 +210,8 @@ void main() {
     
     // Glass highlight: cool glass color (light blue-grey) to feel like real glass shine
     vec3 glassLineColor = vec3(0.88, 0.93, 1.0);
-    // Set visibility to 0.25 so that the thin border lines are crisp and clearly visible
-    finalColor += glassLineColor * thinLine * 0.25 * cursorMask;
+    // Set visibility to 0.18 (reduced from 0.25) so that the thin border lines are visible but subtle
+    finalColor += glassLineColor * thinLine * 0.18 * cursorMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
