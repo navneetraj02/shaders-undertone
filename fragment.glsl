@@ -172,14 +172,14 @@ void main() {
     // Glassy reflections — tinted blue-grey like real glass, not blinding white
     vec3 lightDir = normalize(vec3(-0.5, 1.0, 2.0)); 
     float specAmount = pow(max(dot(normal, lightDir), 0.0), 64.0); // sharper, narrower
-    // Tint specular with cool glass colour instead of pure white (reduced to 0.10)
-    vec3 specular = vec3(0.85, 0.90, 1.0) * specAmount * 0.10;
+    // Tint specular with cool glass colour instead of pure white (further reduced to 0.02)
+    vec3 specular = vec3(0.85, 0.90, 1.0) * specAmount * 0.02;
     
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
     float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 3.0);
     
     finalColor += specular * cursorMask;
-    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.03 * cursorMask;
+    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.005 * cursorMask;
     
     // 7. GLASSY EDGE LINES (Border Lines)
     // Draw a single crisp, thin border line exactly at the flute troughs (valleys)
@@ -200,8 +200,8 @@ void main() {
     
     // Glass highlight: cool glass color (light blue-grey) to feel like real glass shine
     vec3 glassLineColor = vec3(0.88, 0.93, 1.0);
-    // Set visibility to 0.26 (reduced from 0.35) to make them visible but subtle
-    finalColor += glassLineColor * thinLine * 0.26 * cursorMask;
+    // Set visibility to 0.10 (further reduced from 0.18) to make them extremely subtle, reflection-like
+    finalColor += glassLineColor * thinLine * 0.10 * cursorMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
