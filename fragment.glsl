@@ -153,38 +153,35 @@ void main() {
     // 6. FINAL COMPOSITION
     
     // --- GLOBAL GLASS LINES (always visible across entire screen) ---
-    // Each line has a soft shadow in the valley and a bright highlight on the peak
     float ao = smoothstep(-1.0, 1.0, fluteVal);
     
-    // The line shadow — makes each groove dark (visible as thin dark lines)
-    float lineShadow = smoothstep(0.6, 1.0, abs(fluteVal)); // sharp edge near peak
-    float lineHighlight = pow(max(fluteVal, 0.0), 8.0);     // bright peak
+    // Strong sharp line groove shadow
+    float grooveShadow = 1.0 - ao;                           // dark in valleys
+    float ridgeHighlight = pow(max(fluteVal, 0.0), 3.0);     // bright on ridges
     
-    // Base glass — always white background with very subtle line shading
+    // Base glass — strong visible lines on pure white background
     vec3 baseGlass = uBackgroundColor;
-    baseGlass -= vec3(0.08) * (1.0 - ao);         // soft shadow in grooves
-    baseGlass += vec3(0.06) * lineHighlight;       // soft highlight on ridges
+    baseGlass -= vec3(0.22) * grooveShadow;    // deep shadow in groove = visible dark lines
+    baseGlass += vec3(0.12) * ridgeHighlight;  // bright highlight on ridge peaks
     baseGlass = clamp(baseGlass, 0.0, 1.0);
     
     // --- CURSOR COLOR (only where cursor is) ---
     vec3 vibrantFluid = fluidColor * 1.35;
-    // Let the glass structure show through the color too
-    vec3 coloredGlass = vibrantFluid * mix(vec3(0.92), vec3(1.0), ao);
+    vec3 coloredGlass = vibrantFluid * mix(vec3(0.88), vec3(1.0), ao);
     
-    // Blend: lines always show, color appears only inside cursor mask
+    // Lines always visible, colors only inside cursor mask
     vec3 finalColor = mix(baseGlass, coloredGlass, cursorMask);
     
-    // Specular highlights on the peaks — always visible globally, brighter inside cursor
+    // Specular highlights on ridge peaks — globally visible + extra bright inside cursor
     vec3 lightDir = normalize(vec3(-0.5, 1.0, 2.0)); 
-    float specAmount = pow(max(dot(normal, lightDir), 0.0), 64.0);
-    // Specular always visible globally (subtle) + extra bright inside cursor
-    finalColor += vec3(1.0) * specAmount * 0.12;
+    float specAmount = pow(max(dot(normal, lightDir), 0.0), 32.0);
+    finalColor += vec3(1.0) * specAmount * 0.18;
     finalColor += vec3(1.0) * specAmount * 0.5 * cursorMask;
     
-    // Fresnel glow on line edges — always visible globally
+    // Fresnel rim glow on line edges — globally visible
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
     float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.0);
-    finalColor += vec3(1.0) * fresnel * 0.08;
+    finalColor += vec3(1.0) * fresnel * 0.12;
     finalColor += vec3(1.0) * fresnel * 0.2 * cursorMask;
     
     finalColor = clamp(finalColor, 0.0, 1.0);
