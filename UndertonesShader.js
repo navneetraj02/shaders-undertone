@@ -174,22 +174,22 @@ class UndertonesShader {
     if (this.material) {
         this.material.uniforms.uTime.value += delta;
         
-        // Handle idle fading - extremely slow fade out
+        // Handle idle fading - extremely slow fade out (10 seconds to fully dissolve)
         const dist = this.mouse.distanceTo(this.targetMouse);
         if (dist > 0.0005) {
-            this.activeState = Math.min(this.activeState + delta * 5.0, 1.0);
+            this.activeState = Math.min(this.activeState + delta * 3.0, 1.0);
         } else {
-            this.activeState = Math.max(this.activeState - delta * 0.25, 0.0);
+            this.activeState = Math.max(this.activeState - delta * 0.10, 0.0);
         }
         
-        // Smoothly interpolate mouse position for water feel
-        this.mouse.lerp(this.targetMouse, 0.15);
+        // Smoothly interpolate mouse position for slow, fluid gliding feel
+        this.mouse.lerp(this.targetMouse, 0.06);
         
-        // Elastic sticky trail physics
-        this.trail[0].lerp(this.mouse, 0.8);
+        // Elastic sticky trail physics - highly slowed down for a long-lasting trailing ribbon
+        this.trail[0].lerp(this.mouse, 0.12);
         for(let i = 1; i < this.trailCount; i++) {
-            // Each point slowly pulls towards the point in front of it
-            this.trail[i].lerp(this.trail[i-1], 0.35);
+            // Each point slowly pulls towards the point in front of it (0.06 lerp for long fluid trail)
+            this.trail[i].lerp(this.trail[i-1], 0.06);
         }
         
         if (this.material.uniforms.uCursor) {
