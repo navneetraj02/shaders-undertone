@@ -262,6 +262,10 @@ void main() {
     // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
     float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.60, distToBorder);
     
+    // Soft grey glow backing to make the thin lines stand out beautifully on the white space
+    float lineGlow = 1.0 - smoothstep(0.0, fwNormalized * 1.8, distToBorder);
+    finalColor = mix(finalColor, vec3(0.92, 0.93, 0.95), lineGlow * 0.65 * uActive);
+    
     // Deeper shadow mix across the entire screen using uActive to keep lines thin and visible on white background
     finalColor = mix(finalColor, vec3(0.82, 0.84, 0.88), shadowLine * 0.50 * uActive);
     
