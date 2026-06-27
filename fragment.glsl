@@ -213,8 +213,11 @@ void main() {
     // In coloured areas the glass stays more transparent so colour shines through clearly
     vec3 coloredGlass = vibrantFluid * mix(vec3(0.92), vec3(1.0), ao);
     
-    // Combine pure white with the colored/shadowed glass using the cursor mask
-    vec3 finalColor = mix(pureWhite, coloredGlass, cursorMask);
+    // When active, the background is the 3D glass flutes. When idle, it fades to pure white.
+    vec3 activeBackground = mix(pureWhite, baseGlass, uActive);
+    
+    // Combine the active glass background with the colored glass using the cursor mask
+    vec3 finalColor = mix(activeBackground, coloredGlass, cursorMask);
     
     // Glassy reflections — dynamic zig-zag specular reflection that follows the cursor
     vec3 lightVec = vec3(cursorSt - st, 0.20); 
