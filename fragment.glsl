@@ -144,7 +144,7 @@ void main() {
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
     
-    // 4. WATER WAKE MASKS (with organic fluid warping using noise)
+    // 4. WATER WAKE MASK (with organic fluid warping using noise)
     float cursorMask = 0.0;
     float glassMask = 0.0;
     // Reuse noise1 and noise2 to simulate organic fluid/water flow without extra snoise calls
@@ -160,14 +160,14 @@ void main() {
         float age = float(i) / 30.0;
         float intensity = pow(1.0 - age, 0.35); // Slower decay to keep trail active longer
         
-        // Large smooth mask for the color (reduced radius to cover smaller areas)
-        float colorRadius = uCursorRadius * 0.22 * (1.0 - age * 0.2); 
-        float wColor = smoothstep(colorRadius, 0.0, d) * intensity;
+        // Tight mask for colors (covers small areas)
+        float radiusColor = uCursorRadius * 0.22 * (1.0 - age * 0.2); 
+        float wColor = smoothstep(radiusColor, 0.0, d) * intensity;
         nonActiveColorProb *= (1.0 - wColor);
         
-        // Much wider smooth mask for the glass columns, lines, and reflections
-        float glassRadius = uCursorRadius * 0.75 * (1.0 - age * 0.2);
-        float wGlass = smoothstep(glassRadius, 0.0, d) * intensity;
+        // Much wider mask for glass lines and shiny reflections
+        float radiusGlass = uCursorRadius * 0.55 * (1.0 - age * 0.2);
+        float wGlass = smoothstep(radiusGlass, 0.0, d) * intensity;
         nonActiveGlassProb *= (1.0 - wGlass);
     }
     cursorMask = (1.0 - nonActiveColorProb) * smoothstep(0.0, 1.0, uActive);
@@ -209,7 +209,7 @@ void main() {
     
     // Frosted glass tint — cool rich silver-grey shadows in the valleys (matching shaders.com Undertones 3 contrast)
     float ao = smoothstep(-1.0, 1.0, fluteVal);
-    // Use a cool grey-silver frost color for the glass flutes (matching shaders.com Undertones 3 contrast)
+    // Use a cool grey-silver frost color for the glass flutes (visible in the wider glassMask area)
     vec3 frostColor = mix(vec3(0.82, 0.84, 0.88), vec3(0.96, 0.97, 0.99), ao);
     vec3 baseGlass = frostColor;
     
@@ -218,10 +218,11 @@ void main() {
     // In colored areas the glass has a cool grey shadow in the valleys, making the columns pop in 3D
     vec3 coloredGlass = vibrantFluid * mix(vec3(0.78, 0.80, 0.84), vec3(1.0), ao);
     
-    // First, draw the fluted glass ridges on top of the white background using the wide glassMask
+    // First, mix the pure white background with the base greyish glass using the wide glassMask.
+    // This makes the glass diagonal columns form screen-wide in a wide path, fading to white when idle.
     vec3 finalColor = mix(uBackgroundColor, baseGlass, glassMask);
     
-    // Then, mix in the colors using the tighter cursorMask
+    // Next, blend the colored fluid inside the tighter cursorMask core on top of the glass columns.
     finalColor = mix(finalColor, coloredGlass, cursorMask);
     
     // Glassy reflections — dynamic zig-zag specular reflection that follows the cursor
@@ -233,18 +234,18 @@ void main() {
     // Rotate the 3D normal into screen space for physically accurate reflection
     vec3 screenNormal3D = vec3(screenNormal, normal.z);
     
-    // Specular exponent (128.0) and factor (0.65) to create an extremely glassy reflection glint
+    // Specular exponent (128.0) and factor (0.55) to create a highly reflective glass glint
     float specAmount = pow(max(dot(screenNormal3D, halfDir), 0.0), 128.0);
     
     // Restrict highlight to the peaks (ridges) of the flutes to create a stepped/zig-zag reflection
     float ridgeMask = smoothstep(0.3, 1.0, fluteVal);
-    vec3 specular = vec3(0.95, 0.98, 1.0) * specAmount * ridgeMask * 0.65;
+    vec3 specular = vec3(0.95, 0.98, 1.0) * specAmount * ridgeMask * 0.55;
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
-    // Apply specular and fresnel reflections inside the glass mask (wider than color mask)
+    // Apply specular and fresnel reflections inside the wider glassMask trail area
     finalColor += specular * glassMask;
-    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.18 * glassMask;
+    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.12 * glassMask;
     
     // 7. GLASSY EDGE LINES (Border Lines)
     // Draw crisp, thin border lines at both peaks (ridges) and troughs (valleys) of the flutes
@@ -260,7 +261,7 @@ void main() {
     // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
     float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.8, distToBorder);
     
-    // Darken valleys inside the glass mask (wider than color mask)
+    // Darken valleys inside the wider glassMask trail area
     finalColor = mix(finalColor, finalColor * 0.70, shadowLine * glassMask);
     
     // Glass highlight: blue-ish/purple-ish tint inside cursor mask, soft glassy grey outside
@@ -268,7 +269,7 @@ void main() {
     vec3 baseGlassLine = vec3(0.85, 0.88, 0.92);
     vec3 borderLineColor = mix(baseGlassLine, localBorderColor, cursorMask);
     
-    // Set visibility to 0.65 inside the glass mask
+    // Set visibility to 0.65 inside the wider glassMask trail area
     finalColor += borderLineColor * thinLine * 0.65 * glassMask;
     
     // Add shiny light appearance along the borders of the lines and under it (thickened to 4.0 for a more visible sheen)
