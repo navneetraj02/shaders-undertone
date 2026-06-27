@@ -106,7 +106,7 @@ void main() {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(st, trailPoint);
         float age = float(i) / 30.0;
-        float intensity = 1.0 - age;
+        float intensity = pow(1.0 - age, 0.35); // Slower decay to keep trail active longer
         
         // Smooth weight for this trail point (radius 0.48)
         float w = smoothstep(0.48, 0.0, d) * intensity;
@@ -156,7 +156,7 @@ void main() {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(fluidSt, trailPoint);
         float age = float(i) / 30.0;
-        float intensity = 1.0 - age;
+        float intensity = pow(1.0 - age, 0.35); // Slower decay to keep trail active longer
         
         // Large smooth mask for the color (reduced radius to cover smaller areas)
         float radius = uCursorRadius * 0.22 * (1.0 - age * 0.5); 
@@ -206,15 +206,16 @@ void main() {
     float ao = smoothstep(-1.0, 1.0, fluteVal);
     // Use a subtle cool frost colour so empty glass areas feel like ice/glass
     vec3 frostColor = mix(vec3(0.88, 0.90, 0.94), vec3(0.97, 0.98, 1.0), ao);
-    vec3 baseGlass = frostColor;
+    // Base glass sheet visible across the entire screen when active (showing ridges on white background)
+    vec3 baseGlass = mix(pureWhite, frostColor, uActive);
     
     // Keep colors deep and dark
     vec3 vibrantFluid = fluidColor;
     // In coloured areas the glass stays more transparent so colour shines through clearly
     vec3 coloredGlass = vibrantFluid * mix(vec3(0.92), vec3(1.0), ao);
     
-    // Combine pure white with the colored/shadowed glass using the cursor mask
-    vec3 finalColor = mix(pureWhite, coloredGlass, cursorMask);
+    // Combine the base glass sheet with the colored/shadowed glass using the cursor mask
+    vec3 finalColor = mix(baseGlass, coloredGlass, cursorMask);
     
     // Glassy reflections — dynamic zig-zag specular reflection that follows the cursor
     vec3 lightVec = vec3(cursorSt - st, 0.20); 
