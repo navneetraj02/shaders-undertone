@@ -279,15 +279,14 @@ void main() {
     float lineGlow = 1.0 - smoothstep(0.0, fwNormalized * 2.50, distToBorder);
     finalColor = mix(finalColor, vec3(0.92, 0.93, 0.95), lineGlow * 0.65 * uActive);
     
-    // Deeper shadow mix across the entire screen using uActive to keep lines visible on white background
-    finalColor = mix(finalColor, vec3(0.82, 0.84, 0.88), shadowLine * 0.50 * uActive);
+    // Deeper shadow mix across the entire screen using uActive to keep lines visible on white background as a shadow type
+    finalColor = mix(finalColor, finalColor * 0.70, shadowLine * uActive);
     
-    // Glass highlight: blue-ish/purple-ish tint inside cursor mask, soft glassy grey outside
+    // Glass highlight: blue-ish/purple-ish tint inside cursor mask, soft shadow line outside
     vec3 localBorderColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), mixHorizontal);
-    vec3 baseGlassLine = vec3(0.58, 0.59, 0.61); // Medium-dark grey, properly visible on the white space
-    vec3 borderLineColor = mix(baseGlassLine, localBorderColor, cursorMask);
+    vec3 borderLineColor = mix(finalColor * 0.58, localBorderColor, cursorMask);
     
-    // Draw glassy border lines screen-wide using mix to keep them perfectly uniform and visible
+    // Draw glassy border lines screen-wide using mix to keep them perfectly uniform and visible representing a shadow type
     finalColor = mix(finalColor, borderLineColor, thinLine * 0.65 * uActive);
     
     // Add shiny light appearance along the borders of the lines and under it (strictly 0.80 width to match thinLine)
