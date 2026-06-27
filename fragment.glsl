@@ -108,9 +108,8 @@ void main() {
         float age = float(i) / 30.0;
         float intensity = 1.0 - age;
         
-        // Expanding radius for the refraction bulge to match the boat wake shape
-        float radius = 0.48 * (0.4 + age * 1.5);
-        float w = smoothstep(radius, 0.0, d) * intensity;
+        // Smooth weight for this trail point (radius 0.48)
+        float w = smoothstep(0.48, 0.0, d) * intensity;
         nonActiveProb *= (1.0 - w);
     }
     trailBulge = (1.0 - nonActiveProb) * uActive;
@@ -159,51 +158,40 @@ void main() {
         float age = float(i) / 30.0;
         float intensity = 1.0 - age;
         
-        // Large wake mask that expands behind the cursor (like a boat wake)
-        float radius = uCursorRadius * 0.35 * (0.4 + age * 1.8); 
-        
-        // Concentric waves propagating inside the V-shaped wake
-        float wave = sin(d * 24.0 - uTime * 10.0 - age * 3.5);
-        float waveFactor = mix(0.5, 1.0, wave * 0.5 + 0.5);
-        
-        float w = smoothstep(radius, 0.0, d) * intensity * waveFactor;
+        // Large smooth mask for the color
+        float radius = uCursorRadius * 0.35 * (1.0 - age * 0.5); 
+        float w = smoothstep(radius, 0.0, d) * intensity;
         nonActiveColorProb *= (1.0 - w);
     }
     cursorMask = (1.0 - nonActiveColorProb) * smoothstep(0.0, 1.0, uActive);
     
-    // 5. HORIZONTALLY & VERTICALLY SEPARATED GRADIENT COLORS (4 matching tones)
-    // Map all four uniform colors directly to the four corners of the 2D gradient
-    vec3 colorBlue1 = uCursorDownColor;  // Bottom-Left (Vibrant Blue-Purple)
-    vec3 colorBlue2 = uCursorLeftColor;  // Top-Left (Light Cyan-Blue)
-    vec3 colorPurple1 = uCursorRightColor; // Bottom-Right (Vibrant Purple-Blue)
-    vec3 colorPurple2 = uCursorUpColor;    // Top-Right (Light Violet-Purple)
+    // 5. 4-WAY SEPARATED GRADIENT COLORS
+    vec3 cLeft = uCursorLeftColor;     // #56c2fc (Vibrant Light Cyan-Blue)
+    vec3 cRight = uCursorRightColor;   // #5b4fff (Vibrant Indigo-Blue)
+    vec3 cUp = uCursorUpColor;         // #7f66ff (Vibrant Purple-Blue)
+    vec3 cDown = uCursorDownColor;     // #4642ff (Vibrant Blue-Purple)
     
     // Combine noise to create a fluid mask (widen thresholds and add 0.35 minimum color density to prevent white wash)
     float rawNoiseMask = smoothstep(-0.8, 0.4, noise1 * 0.5 + noise2 * 0.5);
     float fluidMask = mix(0.35, 1.0, rawNoiseMask);
     
-    // Vertical blending on left and right sides
-    float verticalFactor = clamp(vUv.y + noise2 * 0.05, 0.0, 1.0);
-    vec3 leftColor = mix(colorBlue1, colorBlue2, verticalFactor);
-    vec3 rightColor = mix(colorPurple1, colorPurple2, verticalFactor);
+    // 2D bilinear gradient blending with organic noise to create a seamless 4-color fluid texture
+    float mixHorizontal = smoothstep(0.25, 0.75, vUv.x + noise1 * 0.08);
+    float mixVertical = smoothstep(0.25, 0.75, vUv.y + noise2 * 0.08);
     
-    // Horizontal gradient factor (left = blue, right = purple) with organic wavy boundary
-    // Sharpened and centered so left is completely blue and right is completely purple
-    float gradientFactor = smoothstep(0.42, 0.58, vUv.x + noise1 * 0.08);
-    vec3 gradientColor = mix(leftColor, rightColor, gradientFactor);
+    vec3 colorHoriz = mix(cLeft, cRight, mixHorizontal);
+    vec3 colorVert = mix(cDown, cUp, mixVertical);
+    vec3 gradientColor = mix(colorHoriz, colorVert, 0.5);
     
-    // Add light blue in the top-left corner (vUv.x close to 0, vUv.y close to 1) with an organic wavy boundary
+    // Add light blue highlight in the top-left corner (using uCursorLeftColor) with an organic wavy boundary
     float distToTopLeft = distance(vUv, vec2(0.0, 1.0));
     float topLeftMask = smoothstep(0.65, 0.15, distToTopLeft + noise2 * 0.06);
-    vec3 colorLightBlue = vec3(0.22, 0.58, 0.92); // Beautiful slightly deeper vibrant blue
-    gradientColor = mix(gradientColor, colorLightBlue, topLeftMask);
+    gradientColor = mix(gradientColor, cLeft, topLeftMask);
     
-    // Add a bottom-spanning purple gradient that transitions from light purple (bottom-left) 
-    // to dark purple (bottom-middle and bottom-right)
+    // Add a bottom-spanning purple gradient that transitions from uCursorDownColor to uCursorRightColor
     float bottomMask = smoothstep(0.35, 0.0, vUv.y + noise1 * 0.05);
     float bottomXFactor = smoothstep(0.0, 0.6, vUv.x + noise2 * 0.04);
-    vec3 colorLightPurple = vec3(0.60, 0.32, 0.94); // Light purple (not too much light)
-    vec3 bottomPurpleColor = mix(colorLightPurple, colorPurple1, bottomXFactor);
+    vec3 bottomPurpleColor = mix(cDown, cRight, bottomXFactor);
     gradientColor = mix(gradientColor, bottomPurpleColor, bottomMask);
     
     // Mix background white with the dynamic gradient color
@@ -237,18 +225,17 @@ void main() {
     // Rotate the 3D normal into screen space for physically accurate reflection
     vec3 screenNormal3D = vec3(screenNormal, normal.z);
     
-    // Specular exponent (128.0) and factor (0.45) to create a beautiful glassy reflection glint
+    // Specular exponent (128.0) and factor (0.20) to create a beautiful glassy reflection glint
     float specAmount = pow(max(dot(screenNormal3D, halfDir), 0.0), 128.0);
     
     // Restrict highlight to the peaks (ridges) of the flutes to create a stepped/zig-zag reflection
     float ridgeMask = smoothstep(0.3, 1.0, fluteVal);
-    vec3 specular = vec3(0.95, 0.98, 1.0) * specAmount * ridgeMask * 0.45;
+    vec3 specular = vec3(0.92, 0.96, 1.0) * specAmount * ridgeMask * 0.20;
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
-    // Apply specular and fresnel reflections across the entire screen using uActive for a nicely visible reflection
-    finalColor += specular * uActive;
-    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.12 * uActive;
+    finalColor += specular * cursorMask;
+    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.06 * cursorMask;
     
     // 7. GLASSY EDGE LINES (Border Lines)
     // Draw crisp, thin border lines at both peaks (ridges) and troughs (valleys) of the flutes
@@ -268,17 +255,12 @@ void main() {
     finalColor = mix(finalColor, finalColor * 0.70, shadowLine * uActive);
     
     // Glass highlight: blue-ish/purple-ish tint inside cursor mask, soft glassy grey outside
-    vec3 localBorderColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), gradientFactor);
+    vec3 localBorderColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), mixHorizontal);
     vec3 baseGlassLine = vec3(0.85, 0.88, 0.92);
     vec3 borderLineColor = mix(baseGlassLine, localBorderColor, cursorMask);
     
     // Set visibility to 0.65 across the entire screen (using uActive instead of cursorMask)
     finalColor += borderLineColor * thinLine * 0.65 * uActive;
-    
-    // Add shiny light appearance along the borders of the lines and under it
-    float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 1.5, distToBorder);
-    vec3 shinyHighlight = vec3(0.95, 0.98, 1.0) * shinyBorder * (0.35 + specAmount * 2.5) * cursorMask;
-    finalColor += shinyHighlight * uActive;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
