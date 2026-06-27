@@ -179,7 +179,7 @@ class UndertonesShader {
         if (dist > 0.0005) {
             this.activeState = Math.min(this.activeState + delta * 3.0, 1.0);
         } else {
-            this.activeState = Math.max(this.activeState - delta * 0.02, 0.0); // Extremely slow fade out when idle
+            this.activeState = Math.max(this.activeState - delta * 0.09, 0.0); // Slower fade out when idle (approx 11 seconds to fully dissolve)
         }
         
         // Track the target mouse position instantly (no lag for the main glow center)
