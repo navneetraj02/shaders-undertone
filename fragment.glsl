@@ -166,13 +166,13 @@ void main() {
         // Tight V-shape mask for colors (covers small areas)
         float intensityColor = pow(1.0 - age, 0.40);
         float radiusColor = uCursorRadius * 0.22 * (0.4 + age * 1.8); 
-        float wColor = smoothstep(radiusColor, 0.0, d) * intensityColor * waveFactor;
+        float wColor = smoothstep(radiusColor, radiusColor - 0.08, d) * intensityColor * waveFactor;
         nonActiveColorProb *= (1.0 - wColor);
         
-        // Much wider V-shape mask for glass lines and reflections (decays much slower along trail)
+        // Much wider V-shape mask for glass lines and reflections (decays much slower along trail, perfectly uniform lines)
         float intensityGlass = pow(1.0 - age, 0.12);
         float radiusGlass = uCursorRadius * 0.44 * (0.4 + age * 1.8);
-        float wGlass = smoothstep(radiusGlass, 0.0, d) * intensityGlass * waveFactor;
+        float wGlass = smoothstep(radiusGlass, radiusGlass - 0.08, d) * intensityGlass;
         nonActiveGlassProb *= (1.0 - wGlass);
     }
     cursorMask = (1.0 - nonActiveColorProb) * smoothstep(0.0, 1.0, uActive);
