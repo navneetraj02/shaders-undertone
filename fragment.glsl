@@ -270,10 +270,10 @@ void main() {
     // Add shiny light appearance along the borders of the lines and under it (increased thickness from 1.5 to 3.5)
     float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 3.5, distToBorder);
     
-    // Tint the edge highlight with the local 4-color mixed gradient to show the color reflection
+    // Tint the edge highlight with the local 4-color mixed gradient to show the color reflection (expanded screen-wide using uActive)
     vec3 shinyHighlightColor = mix(vec3(0.95, 0.98, 1.0), gradientColor, 0.70);
-    vec3 shinyHighlight = shinyHighlightColor * shinyBorder * (0.35 + specAmount * 2.5) * cursorMask;
-    finalColor += shinyHighlight * uActive;
+    vec3 shinyHighlight = shinyHighlightColor * shinyBorder * (0.35 + specAmount * 2.5) * uActive;
+    finalColor += shinyHighlight;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
