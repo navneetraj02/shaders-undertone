@@ -158,8 +158,8 @@ void main() {
         float age = float(i) / 30.0;
         float intensity = 1.0 - age;
         
-        // Large smooth mask for the color
-        float radius = uCursorRadius * 0.35 * (1.0 - age * 0.5); 
+        // Large smooth mask for the color (reduced radius to cover smaller areas)
+        float radius = uCursorRadius * 0.22 * (1.0 - age * 0.5); 
         float w = smoothstep(radius, 0.0, d) * intensity;
         nonActiveColorProb *= (1.0 - w);
     }
@@ -263,8 +263,8 @@ void main() {
     // Set visibility to 0.65 across the entire screen (using uActive instead of cursorMask)
     finalColor += borderLineColor * thinLine * 0.65 * uActive;
     
-    // Add shiny light appearance along the borders of the lines and under it
-    float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 1.5, distToBorder);
+    // Add shiny light appearance along the borders of the lines and under it (thickened to 4.0 for a more visible sheen)
+    float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 4.0, distToBorder);
     vec3 shinyHighlight = vec3(0.95, 0.98, 1.0) * shinyBorder * (0.35 + specAmount * 2.5) * cursorMask;
     finalColor += shinyHighlight * uActive;
     

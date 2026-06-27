@@ -174,21 +174,21 @@ class UndertonesShader {
     if (this.material) {
         this.material.uniforms.uTime.value += delta;
         
-        // Handle idle fading - slow fade out (approx 6.7 seconds to fully dissolve)
+        // Handle idle fading - slow fade out (approx 12.5 seconds to fully dissolve)
         const dist = this.mouse.distanceTo(this.targetMouse);
         if (dist > 0.0005) {
             this.activeState = Math.min(this.activeState + delta * 3.0, 1.0);
         } else {
-            this.activeState = Math.max(this.activeState - delta * 0.15, 0.0);
+            this.activeState = Math.max(this.activeState - delta * 0.08, 0.0); // Slower fade out when idle
         }
         
         // Track the target mouse position instantly (no lag for the main glow center)
         this.mouse.copy(this.targetMouse);
         
-        // Elastic sticky trail physics - head follows instantly, trail follows responsively
+        // Elastic sticky trail physics - head follows instantly, trail follows very slowly for long persistence
         this.trail[0].copy(this.mouse);
         for(let i = 1; i < this.trailCount; i++) {
-            // Each point pulls towards the point in front of it (0.06 lerp for long lagging trail follow)
+            // Slower lerp (0.06) so the trail stretches longer and fades out very slowly behind the cursor
             this.trail[i].lerp(this.trail[i-1], 0.06);
         }
         
