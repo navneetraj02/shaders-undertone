@@ -84,32 +84,40 @@ float snoise(vec3 v){
 }
 
 void main() {
-    // 1. Setup coordinates & calculate cursor displacement
+    // 1. Setup coordinates
     vec2 aspect = vec2(uResolution.x / uResolution.y, 1.0);
     vec2 st = vUv * aspect;
     vec2 cursorSt = uCursor * aspect;
-    
-    vec2 dir = st - cursorSt;
-    float len = length(dir);
-    float smoothLen = len + 0.16;
-    
-    // Tactile hover bulge/press displacement (pushes the ridges outwards)
-    vec2 bulgeDisplacement = dir * (exp(-len * 1.1) * 0.45 * uActive) / smoothLen;
-    
-    // Concentric ripple wave propagating outwards from the cursor
-    float ripple = sin(len * 18.0 - uTime * 6.0) * exp(-len * 2.5) * 0.25 * uActive;
-    
-    // Warp the glass UV coordinates to expand and bend the glass columns organically
-    vec2 warpedVuv = vUv - bulgeDisplacement * 0.20 + dir * ripple;
     
     // 2. GLASS STRUCTURE
     float angle = 20.0 * PI / 180.0;
     float s = sin(angle);
     float c = cos(angle);
     mat2 rot = mat2(c, -s, s, c);
-    vec2 rotSt = warpedVuv * rot;
+    vec2 rotSt = vUv * rot;
     
     float frequency = uFlutes * 2.0; 
+    
+    // Dynamic wavy ripple on the glass columns that expands and contracts as the cursor moves
+    float glassWarp = 0.0;
+    float closestD = 999.0;
+    float closestAge = 0.0;
+    for(int i = 0; i < 30; i += 3) {
+        vec2 trailPoint = uTrail[i] * aspect;
+        float d = distance(st, trailPoint);
+        if (d < closestD) {
+            closestD = d;
+            closestAge = float(i) / 30.0;
+        }
+    }
+    if (closestD < 0.38) {
+        float intensity = 1.0 - closestAge;
+        // High frequency wave that propagates outwards from the trail path
+        float wave = sin(closestD * 18.0 - uTime * 6.0 - closestAge * 2.5);
+        glassWarp = wave * 0.32 * smoothstep(0.38, 0.0, closestD) * intensity;
+    }
+    glassWarp *= uActive;
+    
     // Very slowly animate the glass lines drifting down-right!
     float flutePhase = rotSt.x * frequency - uTime * 0.7;
     float fluteVal = sin(flutePhase);
@@ -119,11 +127,19 @@ void main() {
     vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
     vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
     
-    // 3. SLEEK FLUID NOISE
+    // 3. SLEEK FLUID NOISE (Optimized: calculated first to reuse noise)
     float t = uTime * 0.1;
     
-    // Smooth physical refraction + hover bulge (refraction set to 0.48 for deep tactile response)
-    vec2 nSt = st + screenNormal * 0.48 - bulgeDisplacement;
+    // Add a tactile hover bulge/press effect to make the cursor feel interactive
+    vec2 dir = st - cursorSt;
+    float len = length(dir);
+    
+    // Smooth out the center divisor to eliminate the sharp "pinched" singularity at the cursor position
+    float smoothLen = len + 0.16; 
+    vec2 bulgeDisplacement = dir * (exp(-len * 1.1) * 0.45 * uActive) / smoothLen;
+    
+    // Smooth physical refraction + hover bulge + wavy trail ripple (refracts the background color organically)
+    vec2 nSt = st + screenNormal * 0.48 - bulgeDisplacement + screenNormal * glassWarp * 0.8;
     
     // Compute Ashima 3D Simplex noise once and reuse it for both coordinates warping and color mixes
     float noise1 = snoise(vec3(nSt * 1.5, t));
