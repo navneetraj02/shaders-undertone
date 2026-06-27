@@ -99,23 +99,20 @@ void main() {
     float frequency = uFlutes * 2.0; 
     
     // Dynamic smooth trail warp (bulges/expands the color columns along the trail and then contracts)
+    // Uses smooth probabilistic union to prevent sharp Voronoi/min-distance crease lines
     float trailBulge = 0.0;
-    float closestD = 999.0;
-    float closestAge = 0.0;
+    float nonActiveProb = 1.0;
     for(int i = 0; i < 30; i += 3) {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(st, trailPoint);
-        if (d < closestD) {
-            closestD = d;
-            closestAge = float(i) / 30.0;
-        }
+        float age = float(i) / 30.0;
+        float intensity = 1.0 - age;
+        
+        // Smooth weight for this trail point (radius 0.48)
+        float w = smoothstep(0.48, 0.0, d) * intensity;
+        nonActiveProb *= (1.0 - w);
     }
-    if (closestD < 0.48) {
-        float intensity = 1.0 - closestAge;
-        // Smooth non-oscillating bulge profile to prevent concentric line artifacts
-        trailBulge = smoothstep(0.48, 0.0, closestD) * intensity;
-    }
-    trailBulge *= uActive;
+    trailBulge = (1.0 - nonActiveProb) * uActive;
     
     // Very slowly animate the glass lines drifting down-right!
     float flutePhase = rotSt.x * frequency - uTime * 0.7;
@@ -153,6 +150,8 @@ void main() {
     vec2 fluidWarp = vec2(noise1, noise2) * 0.12 * uActive;
     vec2 fluidSt = st + fluidWarp;
     
+    // Smooth probabilistic union to prevent sharp crease artifacts on color boundaries
+    float nonActiveColorProb = 1.0;
     for(int i = 0; i < 30; i++) {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(fluidSt, trailPoint);
@@ -161,11 +160,10 @@ void main() {
         
         // Large smooth mask for the color
         float radius = uCursorRadius * 0.35 * (1.0 - age * 0.5); 
-        cursorMask = max(cursorMask, smoothstep(radius, 0.0, d) * intensity);
+        float w = smoothstep(radius, 0.0, d) * intensity;
+        nonActiveColorProb *= (1.0 - w);
     }
-    
-    // Fade out entirely when idle
-    cursorMask *= smoothstep(0.0, 1.0, uActive);
+    cursorMask = (1.0 - nonActiveColorProb) * smoothstep(0.0, 1.0, uActive);
     
     // 5. HORIZONTALLY SEPARATED GRADIENT COLORS
     vec3 colorBlue = uCursorLeftColor;   
