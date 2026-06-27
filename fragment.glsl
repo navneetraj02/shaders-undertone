@@ -257,10 +257,10 @@ void main() {
     
     // Constant screen-space width for thin border lines (approx 2 pixels wide)
     float fwNormalized = fwidth(borderPhase);
-    float thinLine = 1.0 - smoothstep(0.0, fwNormalized * 0.5, distToBorder);
+    float thinLine = 1.0 - smoothstep(0.0, fwNormalized * 0.35, distToBorder);
     
     // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
-    float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.8, distToBorder);
+    float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.60, distToBorder);
     
     // Deeper shadow mix (0.70) across the entire screen using uActive
     finalColor = mix(finalColor, finalColor * 0.70, shadowLine * uActive);
@@ -273,8 +273,8 @@ void main() {
     // Set visibility to 0.65 across the entire screen using uActive
     finalColor += borderLineColor * thinLine * 0.65 * uActive;
     
-    // Add shiny light appearance along the borders of the lines and under it (strictly 0.5 width to match thinLine)
-    float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 0.5, distToBorder);
+    // Add shiny light appearance along the borders of the lines and under it (strictly 0.35 width to match thinLine)
+    float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 0.35, distToBorder);
     
     // Tint the edge highlight with the local 4-color mixed gradient to show the color reflection (only inside uCursorMask)
     vec3 shinyHighlightColor = mix(vec3(0.95, 0.98, 1.0), gradientColor, 0.70);
