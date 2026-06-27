@@ -96,7 +96,7 @@ void main() {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(st, trailPoint);
         float age = float(i) / 30.0;
-        float intensity = pow(1.0 - age, 0.35); // Slower decay to keep trail active longer
+        float intensity = clamp(1.0 - age * age, 0.0, 1.0); // Slower decay with a shoulder so lines stay longer before fading
         
         // Wider radius for the glass lines to form completely in the white space around colors
         float radius = uCursorRadius * 0.50 * (1.0 - age * 0.3); 
@@ -172,15 +172,15 @@ void main() {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(fluidSt, trailPoint);
         float age = float(i) / 30.0;
-        float intensity = 1.0 - age;
+        float intensity = pow(1.0 - age, 4.0); // Faster decay along the trail so colors fade first
         
         // Large smooth mask for the color
         float radius = uCursorRadius * 0.35 * (1.0 - age * 0.5); 
         float w = smoothstep(radius, 0.0, d) * intensity;
         nonActiveColorProb *= (1.0 - w);
     }
-    // The colors fade out first using pow(uActive, 2.5), then slowly the glass lines fade out using uActive directly
-    cursorMask = (1.0 - nonActiveColorProb) * pow(uActive, 2.5);
+    // The colors fade out first using pow(uActive, 4.5), then slowly the glass lines fade out using uActive directly
+    cursorMask = (1.0 - nonActiveColorProb) * pow(uActive, 4.5);
     
     // 5. 4-WAY SEPARATED GRADIENT COLORS
     vec3 cLeft = uCursorLeftColor;     // #56c2fc (Vibrant Light Cyan-Blue)
