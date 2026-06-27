@@ -84,17 +84,30 @@ float snoise(vec3 v){
 }
 
 void main() {
-    // 1. Setup coordinates
+    // 1. Setup coordinates & calculate cursor displacement
     vec2 aspect = vec2(uResolution.x / uResolution.y, 1.0);
     vec2 st = vUv * aspect;
     vec2 cursorSt = uCursor * aspect;
+    
+    vec2 dir = st - cursorSt;
+    float len = length(dir);
+    float smoothLen = len + 0.16;
+    
+    // Tactile hover bulge/press displacement (pushes the ridges outwards)
+    vec2 bulgeDisplacement = dir * (exp(-len * 1.1) * 0.45 * uActive) / smoothLen;
+    
+    // Concentric ripple wave propagating outwards from the cursor
+    float ripple = sin(len * 18.0 - uTime * 6.0) * exp(-len * 2.5) * 0.25 * uActive;
+    
+    // Warp the glass UV coordinates to expand and bend the glass columns organically
+    vec2 warpedVuv = vUv - bulgeDisplacement * 0.20 + dir * ripple;
     
     // 2. GLASS STRUCTURE
     float angle = 20.0 * PI / 180.0;
     float s = sin(angle);
     float c = cos(angle);
     mat2 rot = mat2(c, -s, s, c);
-    vec2 rotSt = vUv * rot;
+    vec2 rotSt = warpedVuv * rot;
     
     float frequency = uFlutes * 2.0; 
     // Very slowly animate the glass lines drifting down-right!
@@ -106,16 +119,8 @@ void main() {
     vec3 normal = normalize(vec3(fluteDerivative * 4.0, 0.0, 1.0));
     vec2 screenNormal = (vec2(normal.x, normal.y) * rot);
     
-    // 3. SLEEK FLUID NOISE (Optimized: calculated first to reuse noise)
+    // 3. SLEEK FLUID NOISE
     float t = uTime * 0.1;
-    
-    // Add a tactile hover bulge/press effect to make the cursor feel interactive
-    vec2 dir = st - cursorSt;
-    float len = length(dir);
-    
-    // Smooth out the center divisor to eliminate the sharp "pinched" singularity at the cursor position
-    float smoothLen = len + 0.16; 
-    vec2 bulgeDisplacement = dir * (exp(-len * 1.1) * 0.45 * uActive) / smoothLen;
     
     // Smooth physical refraction + hover bulge (refraction set to 0.48 for deep tactile response)
     vec2 nSt = st + screenNormal * 0.48 - bulgeDisplacement;
