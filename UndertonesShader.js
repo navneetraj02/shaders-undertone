@@ -179,7 +179,7 @@ class UndertonesShader {
         if (dist > 0.0005) {
             this.activeState = Math.min(this.activeState + delta * 3.0, 1.0);
         } else {
-            this.activeState = Math.max(this.activeState - delta * 0.08, 0.0);
+            this.activeState = Math.max(this.activeState - delta * 0.04, 0.0);
         }
         
         // Track the target mouse position instantly (no lag for the main glow center)

@@ -161,7 +161,7 @@ void main() {
         float intensity = pow(1.0 - age, 4.0); // Faster decay along the trail so colors fade first
         
         // Large smooth mask for the color
-        float radius = uCursorRadius * 0.35 * (1.0 - age * 0.5); 
+        float radius = uCursorRadius * 0.30 * (1.0 - age * 0.5); 
         float w = smoothstep(radius, 0.0, d) * intensity;
         nonActiveColorProb *= (1.0 - w);
     }
