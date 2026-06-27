@@ -98,8 +98,8 @@ void main() {
     
     float frequency = uFlutes * 2.0; 
     
-    // Dynamic wavy ripple on the glass columns that expands and contracts as the cursor moves
-    float glassWarp = 0.0;
+    // Dynamic smooth trail warp (bulges/expands the color columns along the trail and then contracts)
+    float trailBulge = 0.0;
     float closestD = 999.0;
     float closestAge = 0.0;
     for(int i = 0; i < 30; i += 3) {
@@ -110,13 +110,12 @@ void main() {
             closestAge = float(i) / 30.0;
         }
     }
-    if (closestD < 0.45) {
+    if (closestD < 0.48) {
         float intensity = 1.0 - closestAge;
-        // Smooth wave that propagates outwards from the trail path
-        float wave = sin(closestD * 14.0 - uTime * 6.5 - closestAge * 2.0);
-        glassWarp = wave * 0.55 * smoothstep(0.45, 0.0, closestD) * intensity;
+        // Smooth non-oscillating bulge profile to prevent concentric line artifacts
+        trailBulge = smoothstep(0.48, 0.0, closestD) * intensity;
     }
-    glassWarp *= uActive;
+    trailBulge *= uActive;
     
     // Very slowly animate the glass lines drifting down-right!
     float flutePhase = rotSt.x * frequency - uTime * 0.7;
@@ -141,8 +140,8 @@ void main() {
     // Constant direction perpendicular to the diagonal flutes (prevents high-frequency line artifacts across the cursor)
     vec2 waveDir = vec2(c, s);
     
-    // Smooth physical refraction + hover bulge + wavy trail ripple (refracts the background color organically)
-    vec2 nSt = st + screenNormal * 0.48 - bulgeDisplacement + waveDir * glassWarp * 0.45;
+    // Smooth physical refraction + hover bulge + smooth trail bulge (bulges the background color organically)
+    vec2 nSt = st + screenNormal * 0.48 - bulgeDisplacement + waveDir * trailBulge * 0.35;
     
     // Compute Ashima 3D Simplex noise once and reuse it for both coordinates warping and color mixes
     float noise1 = snoise(vec3(nSt * 1.5, t));
