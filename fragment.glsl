@@ -216,38 +216,27 @@ void main() {
     // Combine pure white with the colored/shadowed glass using the cursor mask
     vec3 finalColor = mix(pureWhite, coloredGlass, cursorMask);
     
-    // Broad smooth 3D valley shadow across the screen (makes the flutes look like deep tubes)
-    float smoothShadow = smoothstep(0.2, -1.0, fluteVal) * 0.15 * uActive;
-    finalColor = mix(finalColor, finalColor * 0.70, smoothShadow);
-    
-    // Continuous 3D Glassy Reflections (Dual-layer satin + sharp specular highlights running along the peaks)
-    float satinHighlight = pow(max(0.0, fluteVal), 4.0) * 0.20;
-    float sharpHighlight = pow(max(0.0, fluteVal), 24.0) * 0.55;
-    float totalHighlight = satinHighlight + sharpHighlight;
-    vec3 reflectionColor = mix(vec3(0.97, 0.98, 1.0), gradientColor, 0.25 * cursorMask);
-    vec3 continuousSpecular = reflectionColor * totalHighlight * uActive;
-    finalColor += continuousSpecular;
-    
     // Glassy reflections — dynamic zig-zag specular reflection that follows the cursor
     vec3 lightVec = vec3(cursorSt - st, 0.20); 
     vec3 lightDir = normalize(lightVec);
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
     vec3 halfDir = normalize(lightDir + viewDir);
     
+    // Rotate the 3D normal into screen space for physically accurate reflection
     vec3 screenNormal3D = vec3(screenNormal, normal.z);
+    
+    // Specular exponent (128.0) and factor (0.45) to create a beautiful glassy reflection glint
     float specAmount = pow(max(dot(screenNormal3D, halfDir), 0.0), 128.0);
     
     // Restrict highlight to the peaks (ridges) of the flutes to create a stepped/zig-zag reflection
     float ridgeMask = smoothstep(0.3, 1.0, fluteVal);
-    vec3 specColor = mix(vec3(0.95, 0.98, 1.0), gradientColor, 0.70);
-    vec3 specular = specColor * specAmount * ridgeMask * 0.25;
+    vec3 specular = vec3(0.95, 0.98, 1.0) * specAmount * ridgeMask * 0.45;
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
-    vec3 fresnelColor = mix(vec3(0.85, 0.90, 1.0), gradientColor, 0.60);
     
     // Apply specular and fresnel reflections across the entire screen using uActive for a nicely visible reflection
     finalColor += specular * uActive;
-    finalColor += fresnelColor * fresnel * 0.06 * uActive;
+    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.12 * uActive;
     
     // 7. GLASSY EDGE LINES (Border Lines)
     // Draw crisp, thin border lines at both peaks (ridges) and troughs (valleys) of the flutes
@@ -273,6 +262,11 @@ void main() {
     
     // Set visibility to 0.65 across the entire screen (using uActive instead of cursorMask)
     finalColor += borderLineColor * thinLine * 0.65 * uActive;
+    
+    // Add shiny light appearance along the borders of the lines and under it
+    float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 1.5, distToBorder);
+    vec3 shinyHighlight = vec3(0.95, 0.98, 1.0) * shinyBorder * (0.35 + specAmount * 2.5) * cursorMask;
+    finalColor += shinyHighlight * uActive;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
