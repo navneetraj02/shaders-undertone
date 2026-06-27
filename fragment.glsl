@@ -89,21 +89,7 @@ void main() {
     vec2 st = vUv * aspect;
     vec2 cursorSt = uCursor * aspect;
     
-    // Dynamic trail mask for glass structure (wider, fades slower)
-    float linesMask = 0.0;
-    float nonActiveLinesProb = 1.0;
-    for(int i = 0; i < 30; i++) {
-        vec2 trailPoint = uTrail[i] * aspect;
-        float d = distance(st, trailPoint);
-        float age = float(i) / 30.0;
-        float intensity = clamp(1.0 - age * age, 0.0, 1.0); // Slower decay with a shoulder so lines stay longer before fading
-        
-        // Wider radius for the glass lines to form completely in the white space around colors
-        float radius = uCursorRadius * 0.50 * (1.0 - age * 0.3); 
-        float w = smoothstep(radius, 0.0, d) * intensity;
-        nonActiveLinesProb *= (1.0 - w);
-    }
-    linesMask = (1.0 - nonActiveLinesProb) * uActive;
+    // The glass structure forms screen-wide based on uActive and fades out slowly
     
     // 2. GLASS STRUCTURE
     float angle = 20.0 * PI / 180.0;
@@ -230,8 +216,8 @@ void main() {
     // In coloured areas the glass stays more transparent so colour shines through clearly
     vec3 coloredGlass = vibrantFluid * mix(vec3(0.92), vec3(1.0), ao);
     
-    // Mix the pure white background with the base glass flutes along the trail when active (using linesMask)
-    vec3 finalColor = mix(pureWhite, baseGlass, linesMask);
+    // Mix the pure white background with the base glass flutes screen-wide when active (using uActive)
+    vec3 finalColor = mix(pureWhite, baseGlass, uActive);
     
     // Blend the colored fluid inside the cursorMask core
     finalColor = mix(finalColor, coloredGlass, cursorMask);
@@ -257,10 +243,10 @@ void main() {
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
-    // Apply specular and fresnel reflections across the active glass area using linesMask
+    // Apply specular and fresnel reflections screen-wide using uActive
     vec3 fresnelColor = mix(vec3(0.85, 0.90, 1.0), gradientColor, 0.65);
-    finalColor += specular * linesMask;
-    finalColor += fresnelColor * fresnel * 0.12 * linesMask;
+    finalColor += specular * uActive;
+    finalColor += fresnelColor * fresnel * 0.12 * uActive;
     
     // 7. GLASSY EDGE LINES (Border Lines)
     // Draw crisp, thin border lines at both peaks (ridges) and troughs (valleys) of the flutes
@@ -276,23 +262,23 @@ void main() {
     // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
     float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.8, distToBorder);
     
-    // Deeper shadow mix (0.70) across the active glass area using linesMask
-    finalColor = mix(finalColor, finalColor * 0.70, shadowLine * linesMask);
+    // Deeper shadow mix (0.70) across the entire screen using uActive
+    finalColor = mix(finalColor, finalColor * 0.70, shadowLine * uActive);
     
     // Glass highlight: blue-ish/purple-ish tint inside cursor mask, soft glassy grey outside
     vec3 localBorderColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), mixHorizontal);
     vec3 baseGlassLine = vec3(0.85, 0.88, 0.92);
     vec3 borderLineColor = mix(baseGlassLine, localBorderColor, cursorMask);
     
-    // Set visibility to 0.65 across the active glass area using linesMask
-    finalColor += borderLineColor * thinLine * 0.65 * linesMask;
+    // Set visibility to 0.65 across the entire screen using uActive
+    finalColor += borderLineColor * thinLine * 0.65 * uActive;
     
     // Add shiny light appearance along the borders of the lines and under it (restored to uniform 1.5 width)
     float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 1.5, distToBorder);
     
-    // Tint the edge highlight with the local 4-color mixed gradient to show the color reflection (formed along the trail)
+    // Tint the edge highlight with the local 4-color mixed gradient to show the color reflection (formed screen-wide using uActive)
     vec3 shinyHighlightColor = mix(vec3(0.95, 0.98, 1.0), gradientColor, 0.70);
-    vec3 shinyHighlight = shinyHighlightColor * shinyBorder * (0.35 + specAmount * 2.5) * linesMask;
+    vec3 shinyHighlight = shinyHighlightColor * shinyBorder * (0.35 + specAmount * 2.5) * uActive;
     finalColor += shinyHighlight;
     
     gl_FragColor = vec4(finalColor, 1.0);
