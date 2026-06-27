@@ -146,28 +146,38 @@ void main() {
     
     // 4. WATER WAKE MASK (with organic fluid warping using noise)
     float cursorMask = 0.0;
+    float glassMask = 0.0;
     // Reuse noise1 and noise2 to simulate organic fluid/water flow without extra snoise calls
     vec2 fluidWarp = vec2(noise1, noise2) * 0.12 * uActive;
     vec2 fluidSt = st + fluidWarp;
     
     // Smooth probabilistic union to prevent sharp crease artifacts on color boundaries
     float nonActiveColorProb = 1.0;
+    float nonActiveGlassProb = 1.0;
     for(int i = 0; i < 30; i++) {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(fluidSt, trailPoint);
         float age = float(i) / 30.0;
-        float intensity = pow(1.0 - age, 0.35); // Slower decay to keep trail active longer
         
         // Straight-type diagonal waves propagating along the flutes (subtle 18% ripple)
         float wave = sin(rotSt.x * frequency * 0.5 - uTime * 6.0 - age * 2.0);
         float waveFactor = mix(0.82, 1.0, wave * 0.5 + 0.5);
         
-        // Expanding boat-wake V-shape radius (small at cursor, wide behind)
-        float radius = uCursorRadius * 0.26 * (0.4 + age * 1.8); 
-        float wColor = smoothstep(radius, 0.0, d) * intensity * waveFactor;
+        // Tight V-shape mask for colors (covers small areas)
+        float intensityColor = pow(1.0 - age, 0.40);
+        float radiusColor = uCursorRadius * 0.22 * (0.4 + age * 1.8); 
+        float wColor = smoothstep(radiusColor, 0.0, d) * intensityColor * waveFactor;
         nonActiveColorProb *= (1.0 - wColor);
+        
+        // Much wider V-shape mask for glass lines and reflections (decays much slower along trail)
+        float intensityGlass = pow(1.0 - age, 0.12);
+        float radiusGlass = uCursorRadius * 0.44 * (0.4 + age * 1.8);
+        float wGlass = smoothstep(radiusGlass, 0.0, d) * intensityGlass * waveFactor;
+        nonActiveGlassProb *= (1.0 - wGlass);
     }
     cursorMask = (1.0 - nonActiveColorProb) * smoothstep(0.0, 1.0, uActive);
+    // glassMask remains active longer than colors when uActive goes down (colors fade first, glass fades later)
+    glassMask = (1.0 - nonActiveGlassProb) * clamp(uActive * 1.8, 0.0, 1.0);
     
     // 5. 4-WAY SEPARATED GRADIENT COLORS
     vec3 cLeft = uCursorLeftColor;     // #56c2fc (Vibrant Light Cyan-Blue)
@@ -205,15 +215,21 @@ void main() {
     
     // Frosted glass tint — cool rich silver-grey shadows in the valleys (matching shaders.com Undertones 3 contrast)
     float ao = smoothstep(-1.0, 1.0, fluteVal);
+    // Use a cool grey-silver frost color for the glass flutes (visible in the wider glassMask area)
+    vec3 frostColor = mix(vec3(0.82, 0.84, 0.88), vec3(0.96, 0.97, 0.99), ao);
+    vec3 baseGlass = frostColor;
     
     // Keep colors deep and dark
     vec3 vibrantFluid = fluidColor;
     // In colored areas the glass has a cool grey shadow in the valleys, making the columns pop in 3D
     vec3 coloredGlass = vibrantFluid * mix(vec3(0.78, 0.80, 0.84), vec3(1.0), ao);
     
-    // Combine pure white background with the colored/shadowed glass using the cursor mask
-    // This makes the glass diagonal lines and colors form ONLY along the cursor trail, fading to pure white when idle.
-    vec3 finalColor = mix(uBackgroundColor, coloredGlass, cursorMask);
+    // First, mix the pure white background with the base greyish glass using the wide glassMask.
+    // This makes the glass diagonal columns form in a wide path, fading to white when idle.
+    vec3 finalColor = mix(uBackgroundColor, baseGlass, glassMask);
+    
+    // Next, blend the colored fluid inside the tighter cursorMask core on top of the glass columns.
+    finalColor = mix(finalColor, coloredGlass, cursorMask);
     
     // Glassy reflections — dynamic zig-zag specular reflection that follows the cursor
     vec3 lightVec = vec3(cursorSt - st, 0.20); 
@@ -233,9 +249,9 @@ void main() {
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
-    // Apply specular and fresnel reflections ONLY inside the colored cursor mask
-    finalColor += specular * cursorMask;
-    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.25 * cursorMask;
+    // Apply specular and fresnel reflections inside the wider glassMask trail area (colored part + white path)
+    finalColor += specular * glassMask;
+    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.25 * glassMask;
     
     // 7. GLASSY EDGE LINES (Border Lines)
     // Draw crisp, thin border lines at both peaks (ridges) and troughs (valleys) of the flutes
@@ -251,21 +267,21 @@ void main() {
     // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
     float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.8, distToBorder);
     
-    // Darken valleys ONLY inside the cursor mask
-    finalColor = mix(finalColor, finalColor * 0.70, shadowLine * cursorMask);
+    // Darken valleys inside the wider glassMask trail area
+    finalColor = mix(finalColor, finalColor * 0.70, shadowLine * glassMask);
     
     // Glass highlight: blue-ish/purple-ish tint inside cursor mask, soft glassy grey outside
     vec3 localBorderColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), mixHorizontal);
     vec3 baseGlassLine = vec3(0.85, 0.88, 0.92);
     vec3 borderLineColor = mix(baseGlassLine, localBorderColor, cursorMask);
     
-    // Set visibility to 0.65 ONLY inside the cursor mask
-    finalColor += borderLineColor * thinLine * 0.65 * cursorMask;
+    // Set visibility to 0.65 inside the wider glassMask trail area
+    finalColor += borderLineColor * thinLine * 0.65 * glassMask;
     
     // Add shiny light appearance along the borders of the lines and under it (aligned to 0.5 for a sharp, consistent diagonal line width)
     float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 0.5, distToBorder);
     vec3 shinyHighlight = vec3(0.95, 0.98, 1.0) * shinyBorder * (0.50 + specAmount * 3.5);
-    finalColor += shinyHighlight * cursorMask;
+    finalColor += shinyHighlight * glassMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
