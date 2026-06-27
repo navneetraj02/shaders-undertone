@@ -165,18 +165,28 @@ void main() {
     }
     cursorMask = (1.0 - nonActiveColorProb) * smoothstep(0.0, 1.0, uActive);
     
-    // 5. HORIZONTALLY SEPARATED GRADIENT COLORS
-    vec3 colorBlue = uCursorLeftColor;   
-    vec3 colorPurple = uCursorUpColor;   
+    // 5. HORIZONTALLY & VERTICALLY SEPARATED GRADIENT COLORS (4 matching tones)
+    // Two matching blue tones (deep/dark vs. vibrant/light)
+    vec3 colorBlue1 = uCursorLeftColor; 
+    vec3 colorBlue2 = mix(uCursorLeftColor, vec3(0.12, 0.48, 0.95), 0.6);
+    
+    // Two matching purple tones (deep/dark vs. vibrant/light)
+    vec3 colorPurple1 = uCursorUpColor; 
+    vec3 colorPurple2 = mix(uCursorUpColor, vec3(0.58, 0.18, 0.90), 0.6);
     
     // Combine noise to create a fluid mask (widen thresholds and add 0.35 minimum color density to prevent white wash)
     float rawNoiseMask = smoothstep(-0.8, 0.4, noise1 * 0.5 + noise2 * 0.5);
     float fluidMask = mix(0.35, 1.0, rawNoiseMask);
     
+    // Vertical blending on left and right sides
+    float verticalFactor = clamp(vUv.y + noise2 * 0.05, 0.0, 1.0);
+    vec3 leftColor = mix(colorBlue1, colorBlue2, verticalFactor);
+    vec3 rightColor = mix(colorPurple1, colorPurple2, verticalFactor);
+    
     // Horizontal gradient factor (left = blue, right = purple) with organic wavy boundary
     // Sharpened and centered so left is completely blue and right is completely purple
     float gradientFactor = smoothstep(0.42, 0.58, vUv.x + noise1 * 0.08);
-    vec3 gradientColor = mix(colorBlue, colorPurple, gradientFactor);
+    vec3 gradientColor = mix(leftColor, rightColor, gradientFactor);
     
     // Add light blue in the top-left corner (vUv.x close to 0, vUv.y close to 1) with an organic wavy boundary
     float distToTopLeft = distance(vUv, vec2(0.0, 1.0));
@@ -189,7 +199,7 @@ void main() {
     float bottomMask = smoothstep(0.35, 0.0, vUv.y + noise1 * 0.05);
     float bottomXFactor = smoothstep(0.0, 0.6, vUv.x + noise2 * 0.04);
     vec3 colorLightPurple = vec3(0.60, 0.32, 0.94); // Light purple (not too much light)
-    vec3 bottomPurpleColor = mix(colorLightPurple, colorPurple, bottomXFactor);
+    vec3 bottomPurpleColor = mix(colorLightPurple, colorPurple1, bottomXFactor);
     gradientColor = mix(gradientColor, bottomPurpleColor, bottomMask);
     
     // Mix background white with the dynamic gradient color
