@@ -188,8 +188,8 @@ class UndertonesShader {
         // Elastic sticky trail physics - head follows instantly, trail follows responsively
         this.trail[0].copy(this.mouse);
         for(let i = 1; i < this.trailCount; i++) {
-            // Each point pulls towards the point in front of it (0.15 lerp for responsive trail follow)
-            this.trail[i].lerp(this.trail[i-1], 0.15);
+            // Each point pulls towards the point in front of it (0.06 lerp for long lagging trail follow)
+            this.trail[i].lerp(this.trail[i-1], 0.06);
         }
         
         if (this.material.uniforms.uCursor) {
