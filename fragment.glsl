@@ -221,11 +221,13 @@ void main() {
     
     // Blend the beautiful 3D colored glass flutes inside the cursorMask core
     finalColor = mix(finalColor, coloredGlass, cursorMask);
-    // Add a subtle grey halo around the colored region to act as a shadow border
-    float edgeDist = distance(st, cursorSt);
-    float edgeMask = smoothstep(uCursorRadius * 0.85, uCursorRadius * 1.0, edgeDist);
-    finalColor = mix(finalColor, vec3(0.6, 0.6, 0.6), edgeMask * 0.3);
-    
+
+    // Add a subtle grey shadow border around the colored region
+    float colorDist = distance(st, cursorSt);
+    float borderRadius = uCursorRadius * 1.2;
+    float borderMask = smoothstep(uCursorRadius, borderRadius, colorDist);
+    vec3 borderGray = vec3(0.5);
+    finalColor = mix(finalColor, borderGray, borderMask * 0.15);    
     // Glassy reflections — dynamic zig-zag specular reflection that follows the cursor
     vec3 lightVec = vec3(cursorSt - st, 0.20); 
     vec3 lightDir = normalize(lightVec);
