@@ -227,6 +227,10 @@ void main() {
     // Start with a clean white background, but add a soft grey fluted glass glow directly surrounding the colors
     vec3 finalColor = mix(pureWhite, baseGlass, glassGlowMask);
     
+    // Add a beautiful darker grey shadow border exactly wrapping around the edge of the colored zone
+    float colorBorderMask = clamp(glassGlowMask - cursorMask, 0.0, 1.0);
+    finalColor = mix(finalColor, vec3(0.78, 0.79, 0.82), colorBorderMask * 0.40);
+    
     // Blend the beautiful 3D colored glass flutes inside the cursorMask core
     finalColor = mix(finalColor, coloredGlass, cursorMask);
     
@@ -265,14 +269,14 @@ void main() {
     
     // Constant screen-space width for thin border lines (approx 2 pixels wide)
     float fwNormalized = fwidth(borderPhase);
-    // Set widths to be just a little fat but not too much (strictly 0.43 width to match thinLine)
-    float thinLine = 1.0 - smoothstep(0.0, fwNormalized * 0.43, distToBorder);
+    // Set widths of all lines to be fatter and highly visible (strictly 0.80 width to match thinLine)
+    float thinLine = 1.0 - smoothstep(0.0, fwNormalized * 0.80, distToBorder);
     
-    // Very subtle shadow line (approx 3 pixels wide)
-    float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.70, distToBorder);
+    // Fatter shadow line
+    float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 1.30, distToBorder);
     
-    // Soft grey glow backing to make the thin lines stand out beautifully on the white space
-    float lineGlow = 1.0 - smoothstep(0.0, fwNormalized * 1.8, distToBorder);
+    // Soft grey glow backing to make the fatter lines stand out beautifully on the white space
+    float lineGlow = 1.0 - smoothstep(0.0, fwNormalized * 2.50, distToBorder);
     finalColor = mix(finalColor, vec3(0.92, 0.93, 0.95), lineGlow * 0.65 * uActive);
     
     // Deeper shadow mix across the entire screen using uActive to keep lines visible on white background
@@ -286,8 +290,8 @@ void main() {
     // Draw glassy border lines screen-wide using mix to keep them perfectly uniform and visible
     finalColor = mix(finalColor, borderLineColor, thinLine * 0.65 * uActive);
     
-    // Add shiny light appearance along the borders of the lines and under it (strictly 0.43 width to match thinLine)
-    float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 0.43, distToBorder);
+    // Add shiny light appearance along the borders of the lines and under it (strictly 0.80 width to match thinLine)
+    float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 0.80, distToBorder);
     
     // Tint the edge highlight with the local 4-color mixed gradient to show the color reflection (only inside uCursorMask)
     vec3 shinyHighlightColor = mix(vec3(0.95, 0.98, 1.0), gradientColor, 0.70);
