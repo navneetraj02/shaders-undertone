@@ -169,7 +169,7 @@ void main() {
         float pointActiveGlass = clamp((uActiveGlass - age * 0.6) / (1.0 - age * 0.6), 0.0, 1.0);
         
         // Shared boat-wake V-shape radius (same size and width for colors and glass lines)
-        float radius = uCursorRadius * 0.28 * (0.4 + age * 1.8); 
+        float radius = uCursorRadius * 0.16 * (0.4 + age * 1.8); 
         
         // Tight mask for colors (covers small areas, modulated by waveFactor)
         float intensityColor = pow(1.0 - age, 0.40);
