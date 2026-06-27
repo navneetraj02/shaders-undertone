@@ -199,19 +199,17 @@ void main() {
     
     // 6. TRUE GLASS RENDERING COMPOSITION
     
-    // Frosted glass tint — cool rich silver-grey background (visible screen-wide at all times)
+    // Frosted glass tint — cool rich silver-grey shadows in the valleys (matching shaders.com Undertones 3 contrast)
     float ao = smoothstep(-1.0, 1.0, fluteVal);
-    // Use a cool grey-silver frost color for the glass flutes (matching shaders.com Undertones 3 contrast)
-    vec3 frostColor = mix(vec3(0.82, 0.84, 0.88), vec3(0.96, 0.97, 0.99), ao);
-    vec3 baseGlass = frostColor;
     
     // Keep colors deep and dark
     vec3 vibrantFluid = fluidColor;
-    // In colored areas the glass stays more transparent so color shines through clearly
-    vec3 coloredGlass = vibrantFluid * mix(vec3(0.92), vec3(1.0), ao);
+    // In colored areas the glass has a cool grey shadow in the valleys, making the columns pop in 3D
+    vec3 coloredGlass = vibrantFluid * mix(vec3(0.78, 0.80, 0.84), vec3(1.0), ao);
     
-    // Combine base glass with the colored/shadowed glass using the cursor mask
-    vec3 finalColor = mix(baseGlass, coloredGlass, cursorMask);
+    // Combine pure white background with the colored/shadowed glass using the cursor mask
+    // This makes the glass diagonal lines and colors form ONLY along the cursor trail, fading to pure white when idle.
+    vec3 finalColor = mix(uBackgroundColor, coloredGlass, cursorMask);
     
     // Glassy reflections — dynamic zig-zag specular reflection that follows the cursor
     vec3 lightVec = vec3(cursorSt - st, 0.20); 
@@ -231,9 +229,9 @@ void main() {
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
-    // Apply specular and fresnel reflections across the entire screen at all times for persistent shine
-    finalColor += specular;
-    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.12;
+    // Apply specular and fresnel reflections ONLY inside the colored cursor mask
+    finalColor += specular * cursorMask;
+    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.12 * cursorMask;
     
     // 7. GLASSY EDGE LINES (Border Lines)
     // Draw crisp, thin border lines at both peaks (ridges) and troughs (valleys) of the flutes
@@ -249,21 +247,21 @@ void main() {
     // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
     float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.8, distToBorder);
     
-    // Deeper shadow mix (0.70) across the entire screen at all times
-    finalColor = mix(finalColor, finalColor * 0.70, shadowLine);
+    // Darken valleys ONLY inside the cursor mask
+    finalColor = mix(finalColor, finalColor * 0.70, shadowLine * cursorMask);
     
     // Glass highlight: blue-ish/purple-ish tint inside cursor mask, soft glassy grey outside
     vec3 localBorderColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), mixHorizontal);
     vec3 baseGlassLine = vec3(0.85, 0.88, 0.92);
     vec3 borderLineColor = mix(baseGlassLine, localBorderColor, cursorMask);
     
-    // Set visibility to 0.65 across the entire screen at all times
-    finalColor += borderLineColor * thinLine * 0.65;
+    // Set visibility to 0.65 ONLY inside the cursor mask
+    finalColor += borderLineColor * thinLine * 0.65 * cursorMask;
     
     // Add shiny light appearance along the borders of the lines and under it (thickened to 4.0 for a more visible sheen)
     float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 4.0, distToBorder);
     vec3 shinyHighlight = vec3(0.95, 0.98, 1.0) * shinyBorder * (0.35 + specAmount * 2.5);
-    finalColor += shinyHighlight;
+    finalColor += shinyHighlight * cursorMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
