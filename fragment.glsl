@@ -108,8 +108,9 @@ void main() {
         float age = float(i) / 30.0;
         float intensity = 1.0 - age;
         
-        // Smooth weight for this trail point (radius 0.48)
-        float w = smoothstep(0.48, 0.0, d) * intensity;
+        // Expanding radius for the refraction bulge to match the boat wake shape
+        float radius = 0.48 * (0.4 + age * 1.5);
+        float w = smoothstep(radius, 0.0, d) * intensity;
         nonActiveProb *= (1.0 - w);
     }
     trailBulge = (1.0 - nonActiveProb) * uActive;
@@ -158,9 +159,14 @@ void main() {
         float age = float(i) / 30.0;
         float intensity = 1.0 - age;
         
-        // Large smooth mask for the color
-        float radius = uCursorRadius * 0.35 * (1.0 - age * 0.5); 
-        float w = smoothstep(radius, 0.0, d) * intensity;
+        // Large wake mask that expands behind the cursor (like a boat wake)
+        float radius = uCursorRadius * 0.35 * (0.4 + age * 1.8); 
+        
+        // Concentric waves propagating inside the V-shaped wake
+        float wave = sin(d * 24.0 - uTime * 10.0 - age * 3.5);
+        float waveFactor = mix(0.5, 1.0, wave * 0.5 + 0.5);
+        
+        float w = smoothstep(radius, 0.0, d) * intensity * waveFactor;
         nonActiveColorProb *= (1.0 - w);
     }
     cursorMask = (1.0 - nonActiveColorProb) * smoothstep(0.0, 1.0, uActive);
