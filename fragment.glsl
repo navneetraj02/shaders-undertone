@@ -148,14 +148,12 @@ void main() {
     
     // 4. WATER WAKE MASK (with organic fluid warping using noise)
     float cursorMask = 0.0;
-    float glassGlowMask = 0.0;
     // Reuse noise1 and noise2 to simulate organic fluid/water flow without extra snoise calls
     vec2 fluidWarp = vec2(noise1, noise2) * 0.12 * uActive;
     vec2 fluidSt = st + fluidWarp;
     
     // Smooth probabilistic union to prevent sharp crease artifacts on color boundaries
     float nonActiveColorProb = 1.0;
-    float nonActiveGlowProb = 1.0;
     for(int i = 0; i < 30; i++) {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(fluidSt, trailPoint);
@@ -166,15 +164,9 @@ void main() {
         float radius = uCursorRadius * 0.30 * (1.0 - age * 0.5); 
         float w = smoothstep(radius, 0.0, d) * intensity;
         nonActiveColorProb *= (1.0 - w);
-        
-        // Wider radius for the grey glass columns around the colors
-        float radiusGlow = uCursorRadius * 0.52 * (1.0 - age * 0.3); 
-        float wGlow = smoothstep(radiusGlow, 0.0, d) * intensity;
-        nonActiveGlowProb *= (1.0 - wGlow);
     }
     // The colors fade out slower using pow(uActive, 2.0), then slowly the glass lines fade out using uActive directly
     cursorMask = (1.0 - nonActiveColorProb) * pow(uActive, 2.0);
-    glassGlowMask = (1.0 - nonActiveGlowProb) * pow(uActive, 2.0);
     
     // 5. 4-WAY SEPARATED GRADIENT COLORS
     vec3 cLeft = uCursorLeftColor;     // #56c2fc (Vibrant Light Cyan-Blue)
@@ -224,15 +216,15 @@ void main() {
     // In coloured areas the glass stays more transparent so colour shines through clearly
     vec3 coloredGlass = vibrantFluid * mix(vec3(0.92), vec3(1.0), ao);
     
-    // Start with a clean white background, but add a soft grey fluted glass glow directly surrounding the colors
-    vec3 finalColor = mix(pureWhite, baseGlass, glassGlowMask);
-    
-    // Add a beautiful darker grey shadow border exactly wrapping around the edge of the colored zone
-    float colorBorderMask = clamp(glassGlowMask - cursorMask, 0.0, 1.0);
-    finalColor = mix(finalColor, vec3(0.78, 0.79, 0.82), colorBorderMask * 0.40);
+    // Start with a clean white background
+    vec3 finalColor = pureWhite;
     
     // Blend the beautiful 3D colored glass flutes inside the cursorMask core
     finalColor = mix(finalColor, coloredGlass, cursorMask);
+    // Add a subtle grey halo around the colored region to act as a shadow border
+    float edgeDist = distance(st, cursorSt);
+    float edgeMask = smoothstep(uCursorRadius * 0.85, uCursorRadius * 1.0, edgeDist);
+    finalColor = mix(finalColor, vec3(0.6, 0.6, 0.6), edgeMask * 0.3);
     
     // Glassy reflections — dynamic zig-zag specular reflection that follows the cursor
     vec3 lightVec = vec3(cursorSt - st, 0.20); 
@@ -269,28 +261,28 @@ void main() {
     
     // Constant screen-space width for thin border lines (approx 2 pixels wide)
     float fwNormalized = fwidth(borderPhase);
-    // Set widths of all lines to be fatter and highly visible (strictly 0.80 width to match thinLine)
-    float thinLine = 1.0 - smoothstep(0.0, fwNormalized * 0.80, distToBorder);
+    float thinLine = 1.0 - smoothstep(0.0, fwNormalized * 0.35, distToBorder);
     
-    // Fatter shadow line
-    float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 1.30, distToBorder);
+    // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
+    float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.60, distToBorder);
     
-    // Soft grey glow backing to make the fatter lines stand out beautifully on the white space
-    float lineGlow = 1.0 - smoothstep(0.0, fwNormalized * 2.50, distToBorder);
+    // Soft grey glow backing to make the thin lines stand out beautifully on the white space
+    float lineGlow = 1.0 - smoothstep(0.0, fwNormalized * 1.8, distToBorder);
     finalColor = mix(finalColor, vec3(0.92, 0.93, 0.95), lineGlow * 0.65 * uActive);
     
-    // Deeper shadow mix across the entire screen using uActive to keep lines visible on white background as a shadow type
-    finalColor = mix(finalColor, finalColor * 0.70, shadowLine * uActive);
+    // Deeper shadow mix across the entire screen using uActive to keep lines thin and visible on white background
+    finalColor = mix(finalColor, vec3(0.82, 0.84, 0.88), shadowLine * 0.50 * uActive);
     
-    // Glass highlight: blue-ish/purple-ish tint inside cursor mask, soft shadow line outside
+    // Glass highlight: blue-ish/purple-ish tint inside cursor mask, soft glassy grey outside
     vec3 localBorderColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), mixHorizontal);
-    vec3 borderLineColor = mix(finalColor * 0.58, localBorderColor, cursorMask);
+    vec3 baseGlassLine = vec3(0.58, 0.59, 0.61); // Medium-dark grey, properly visible on the white space
+    vec3 borderLineColor = mix(baseGlassLine, localBorderColor, cursorMask);
     
-    // Draw glassy border lines screen-wide using mix to keep them perfectly uniform and visible representing a shadow type
+    // Draw thin glassy border lines screen-wide using mix to keep them perfectly thin and visible
     finalColor = mix(finalColor, borderLineColor, thinLine * 0.65 * uActive);
     
-    // Add shiny light appearance along the borders of the lines and under it (strictly 0.80 width to match thinLine)
-    float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 0.80, distToBorder);
+    // Add shiny light appearance along the borders of the lines and under it (strictly 0.35 width to match thinLine)
+    float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 0.35, distToBorder);
     
     // Tint the edge highlight with the local 4-color mixed gradient to show the color reflection (only inside uCursorMask)
     vec3 shinyHighlightColor = mix(vec3(0.95, 0.98, 1.0), gradientColor, 0.70);
