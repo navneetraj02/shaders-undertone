@@ -270,5 +270,10 @@ void main() {
     // Set visibility to 0.65 across the entire screen (using uActive instead of cursorMask)
     finalColor += borderLineColor * thinLine * 0.65 * uActive;
     
+    // Add shiny light appearance along the borders of the lines and under it
+    float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 1.5, distToBorder);
+    vec3 shinyHighlight = vec3(0.95, 0.98, 1.0) * shinyBorder * (0.35 + specAmount * 2.5) * cursorMask;
+    finalColor += shinyHighlight * uActive;
+    
     gl_FragColor = vec4(finalColor, 1.0);
 }
