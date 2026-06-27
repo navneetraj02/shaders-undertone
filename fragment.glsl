@@ -106,7 +106,7 @@ void main() {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(st, trailPoint);
         float age = float(i) / 30.0;
-        float intensity = pow(1.0 - age, 0.35); // Slower decay to keep trail active longer
+        float intensity = 1.0 - age;
         
         // Smooth weight for this trail point (radius 0.48)
         float w = smoothstep(0.48, 0.0, d) * intensity;
@@ -156,7 +156,7 @@ void main() {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(fluidSt, trailPoint);
         float age = float(i) / 30.0;
-        float intensity = pow(1.0 - age, 0.35); // Slower decay to keep trail active longer
+        float intensity = 1.0 - age;
         
         // Large smooth mask for the color (reduced radius to cover smaller areas)
         float radius = uCursorRadius * 0.22 * (1.0 - age * 0.5); 
@@ -199,22 +199,18 @@ void main() {
     
     // 6. TRUE GLASS RENDERING COMPOSITION
     
-    // Pure white idle background
-    vec3 pureWhite = uBackgroundColor; 
-    
-    // Frosted glass tint — cool light blue-grey, NOT pure white
+    // Frosted glass tint — cool light silver-grey background (visible screen-wide)
     float ao = smoothstep(-1.0, 1.0, fluteVal);
-    // Use a subtle cool frost colour so empty glass areas feel like ice/glass
-    vec3 frostColor = mix(vec3(0.88, 0.90, 0.94), vec3(0.97, 0.98, 1.0), ao);
-    // Base glass sheet visible across the entire screen when active (showing ridges on white background)
-    vec3 baseGlass = mix(pureWhite, frostColor, uActive);
+    // Use a cool grey-silver frost color for the glass flutes
+    vec3 frostColor = mix(vec3(0.90, 0.91, 0.94), vec3(0.98, 0.99, 1.0), ao);
+    vec3 baseGlass = frostColor;
     
     // Keep colors deep and dark
     vec3 vibrantFluid = fluidColor;
-    // In coloured areas the glass stays more transparent so colour shines through clearly
+    // In colored areas the glass stays more transparent so color shines through clearly
     vec3 coloredGlass = vibrantFluid * mix(vec3(0.92), vec3(1.0), ao);
     
-    // Combine the base glass sheet with the colored/shadowed glass using the cursor mask
+    // Combine base glass with the colored/shadowed glass using the cursor mask
     vec3 finalColor = mix(baseGlass, coloredGlass, cursorMask);
     
     // Glassy reflections — dynamic zig-zag specular reflection that follows the cursor
