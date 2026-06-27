@@ -144,14 +144,16 @@ void main() {
     float noise1 = snoise(vec3(nSt * 1.5, t));
     float noise2 = snoise(vec3(nSt * 2.5, t * 1.3 + 10.0));
     
-    // 4. WATER WAKE MASK (with organic fluid warping using noise)
+    // 4. WATER WAKE MASKS (with organic fluid warping using noise)
     float cursorMask = 0.0;
+    float glassMask = 0.0;
     // Reuse noise1 and noise2 to simulate organic fluid/water flow without extra snoise calls
     vec2 fluidWarp = vec2(noise1, noise2) * 0.12 * uActive;
     vec2 fluidSt = st + fluidWarp;
     
     // Smooth probabilistic union to prevent sharp crease artifacts on color boundaries
     float nonActiveColorProb = 1.0;
+    float nonActiveGlassProb = 1.0;
     for(int i = 0; i < 30; i++) {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(fluidSt, trailPoint);
@@ -159,11 +161,17 @@ void main() {
         float intensity = pow(1.0 - age, 0.35); // Slower decay to keep trail active longer
         
         // Large smooth mask for the color (reduced radius to cover smaller areas)
-        float radius = uCursorRadius * 0.22 * (1.0 - age * 0.2); 
-        float w = smoothstep(radius, 0.0, d) * intensity;
-        nonActiveColorProb *= (1.0 - w);
+        float colorRadius = uCursorRadius * 0.22 * (1.0 - age * 0.2); 
+        float wColor = smoothstep(colorRadius, 0.0, d) * intensity;
+        nonActiveColorProb *= (1.0 - wColor);
+        
+        // Much wider smooth mask for the glass columns, lines, and reflections
+        float glassRadius = uCursorRadius * 0.75 * (1.0 - age * 0.2);
+        float wGlass = smoothstep(glassRadius, 0.0, d) * intensity;
+        nonActiveGlassProb *= (1.0 - wGlass);
     }
     cursorMask = (1.0 - nonActiveColorProb) * smoothstep(0.0, 1.0, uActive);
+    glassMask = (1.0 - nonActiveGlassProb) * smoothstep(0.0, 1.0, uActive);
     
     // 5. 4-WAY SEPARATED GRADIENT COLORS
     vec3 cLeft = uCursorLeftColor;     // #56c2fc (Vibrant Light Cyan-Blue)
@@ -201,15 +209,20 @@ void main() {
     
     // Frosted glass tint — cool rich silver-grey shadows in the valleys (matching shaders.com Undertones 3 contrast)
     float ao = smoothstep(-1.0, 1.0, fluteVal);
+    // Use a cool grey-silver frost color for the glass flutes (matching shaders.com Undertones 3 contrast)
+    vec3 frostColor = mix(vec3(0.82, 0.84, 0.88), vec3(0.96, 0.97, 0.99), ao);
+    vec3 baseGlass = frostColor;
     
     // Keep colors deep and dark
     vec3 vibrantFluid = fluidColor;
     // In colored areas the glass has a cool grey shadow in the valleys, making the columns pop in 3D
     vec3 coloredGlass = vibrantFluid * mix(vec3(0.78, 0.80, 0.84), vec3(1.0), ao);
     
-    // Combine pure white background with the colored/shadowed glass using the cursor mask
-    // This makes the glass diagonal lines and colors form ONLY along the cursor trail, fading to pure white when idle.
-    vec3 finalColor = mix(uBackgroundColor, coloredGlass, cursorMask);
+    // First, draw the fluted glass ridges on top of the white background using the wide glassMask
+    vec3 finalColor = mix(uBackgroundColor, baseGlass, glassMask);
+    
+    // Then, mix in the colors using the tighter cursorMask
+    finalColor = mix(finalColor, coloredGlass, cursorMask);
     
     // Glassy reflections — dynamic zig-zag specular reflection that follows the cursor
     vec3 lightVec = vec3(cursorSt - st, 0.20); 
@@ -220,18 +233,18 @@ void main() {
     // Rotate the 3D normal into screen space for physically accurate reflection
     vec3 screenNormal3D = vec3(screenNormal, normal.z);
     
-    // Specular exponent (128.0) and factor (0.45) to create a beautiful glassy reflection glint
+    // Specular exponent (128.0) and factor (0.65) to create an extremely glassy reflection glint
     float specAmount = pow(max(dot(screenNormal3D, halfDir), 0.0), 128.0);
     
     // Restrict highlight to the peaks (ridges) of the flutes to create a stepped/zig-zag reflection
     float ridgeMask = smoothstep(0.3, 1.0, fluteVal);
-    vec3 specular = vec3(0.95, 0.98, 1.0) * specAmount * ridgeMask * 0.45;
+    vec3 specular = vec3(0.95, 0.98, 1.0) * specAmount * ridgeMask * 0.65;
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
-    // Apply specular and fresnel reflections ONLY inside the colored cursor mask
-    finalColor += specular * cursorMask;
-    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.12 * cursorMask;
+    // Apply specular and fresnel reflections inside the glass mask (wider than color mask)
+    finalColor += specular * glassMask;
+    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.18 * glassMask;
     
     // 7. GLASSY EDGE LINES (Border Lines)
     // Draw crisp, thin border lines at both peaks (ridges) and troughs (valleys) of the flutes
@@ -247,21 +260,21 @@ void main() {
     // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
     float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.8, distToBorder);
     
-    // Darken valleys ONLY inside the cursor mask
-    finalColor = mix(finalColor, finalColor * 0.70, shadowLine * cursorMask);
+    // Darken valleys inside the glass mask (wider than color mask)
+    finalColor = mix(finalColor, finalColor * 0.70, shadowLine * glassMask);
     
     // Glass highlight: blue-ish/purple-ish tint inside cursor mask, soft glassy grey outside
     vec3 localBorderColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), mixHorizontal);
     vec3 baseGlassLine = vec3(0.85, 0.88, 0.92);
     vec3 borderLineColor = mix(baseGlassLine, localBorderColor, cursorMask);
     
-    // Set visibility to 0.65 ONLY inside the cursor mask
-    finalColor += borderLineColor * thinLine * 0.65 * cursorMask;
+    // Set visibility to 0.65 inside the glass mask
+    finalColor += borderLineColor * thinLine * 0.65 * glassMask;
     
     // Add shiny light appearance along the borders of the lines and under it (thickened to 4.0 for a more visible sheen)
     float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 4.0, distToBorder);
     vec3 shinyHighlight = vec3(0.95, 0.98, 1.0) * shinyBorder * (0.35 + specAmount * 2.5);
-    finalColor += shinyHighlight * cursorMask;
+    finalColor += shinyHighlight * glassMask;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
