@@ -223,12 +223,12 @@ void main() {
     // Rotate the 3D normal into screen space for physically accurate reflection
     vec3 screenNormal3D = vec3(screenNormal, normal.z);
     
-    // Specular exponent (128.0) and factor (0.15) to create a beautiful glassy reflection glint
+    // Specular exponent (128.0) and factor (0.20) to create a beautiful glassy reflection glint
     float specAmount = pow(max(dot(screenNormal3D, halfDir), 0.0), 128.0);
     
     // Restrict highlight to the peaks (ridges) of the flutes to create a stepped/zig-zag reflection
     float ridgeMask = smoothstep(0.3, 1.0, fluteVal);
-    vec3 specular = vec3(0.92, 0.96, 1.0) * specAmount * ridgeMask * 0.15;
+    vec3 specular = vec3(0.92, 0.96, 1.0) * specAmount * ridgeMask * 0.20;
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
