@@ -163,21 +163,26 @@ void main() {
         float wave = sin(rotSt.x * frequency * 0.5 - uTime * 6.0 - age * 2.0);
         float waveFactor = mix(0.82, 1.0, wave * 0.5 + 0.5);
         
-        // Tight V-shape mask for colors (covers small areas)
+        // Propagating trail point active states (older points fade first, creating a tail-to-head fade)
+        float pointActiveColor = clamp((uActive - age * 0.7) / (1.0 - age * 0.7), 0.0, 1.0);
+        float uActiveGlass = clamp(uActive * 1.8, 0.0, 1.0);
+        float pointActiveGlass = clamp((uActiveGlass - age * 0.6) / (1.0 - age * 0.6), 0.0, 1.0);
+        
+        // Shared boat-wake V-shape radius (same size and width for colors and glass lines)
+        float radius = uCursorRadius * 0.28 * (0.4 + age * 1.8); 
+        
+        // Tight mask for colors (covers small areas, modulated by waveFactor)
         float intensityColor = pow(1.0 - age, 0.40);
-        float radiusColor = uCursorRadius * 0.22 * (0.4 + age * 1.8); 
-        float wColor = smoothstep(radiusColor, radiusColor - 0.08, d) * intensityColor * waveFactor;
+        float wColor = smoothstep(radius, radius - 0.08, d) * intensityColor * waveFactor * pointActiveColor;
         nonActiveColorProb *= (1.0 - wColor);
         
-        // Much wider V-shape mask for glass lines and reflections (decays much slower along trail, perfectly uniform lines)
+        // Wider mask for glass lines and reflections (same radius, decays much slower along trail, uniform lines)
         float intensityGlass = pow(1.0 - age, 0.12);
-        float radiusGlass = uCursorRadius * 0.44 * (0.4 + age * 1.8);
-        float wGlass = smoothstep(radiusGlass, radiusGlass - 0.08, d) * intensityGlass;
+        float wGlass = smoothstep(radius, radius - 0.08, d) * intensityGlass * pointActiveGlass;
         nonActiveGlassProb *= (1.0 - wGlass);
     }
-    cursorMask = (1.0 - nonActiveColorProb) * smoothstep(0.0, 1.0, uActive);
-    // glassMask remains active longer than colors when uActive goes down (colors fade first, glass fades later)
-    glassMask = (1.0 - nonActiveGlassProb) * clamp(uActive * 1.8, 0.0, 1.0);
+    cursorMask = 1.0 - nonActiveColorProb;
+    glassMask = 1.0 - nonActiveGlassProb;
     
     // 5. 4-WAY SEPARATED GRADIENT COLORS
     vec3 cLeft = uCursorLeftColor;     // #56c2fc (Vibrant Light Cyan-Blue)
