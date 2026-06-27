@@ -138,7 +138,7 @@ void main() {
     vec2 waveDir = vec2(c, s);
     
     // Smooth physical refraction + hover bulge + smooth trail bulge (bulges the background color organically)
-    vec2 nSt = st + screenNormal * 0.48 - bulgeDisplacement + waveDir * trailBulge * 0.35;
+    vec2 nSt = st + screenNormal * 0.48 - bulgeDisplacement + waveDir * trailBulge * 0.85;
     
     // Compute Ashima 3D Simplex noise once and reuse it for both coordinates warping and color mixes
     float noise1 = snoise(vec3(nSt * 1.5, t));
@@ -160,14 +160,18 @@ void main() {
         float age = float(i) / 30.0;
         float intensity = pow(1.0 - age, 0.35); // Slower decay to keep trail active longer
         
+        // Concentric waves propagating inside the wake (expanding/contracting in wavy fashion)
+        float wave = sin(d * 22.0 - uTime * 8.0 - age * 3.5);
+        float waveFactor = mix(0.5, 1.0, wave * 0.5 + 0.5);
+        
         // Tight mask for colors (covers small areas)
         float radiusColor = uCursorRadius * 0.22 * (1.0 - age * 0.2); 
-        float wColor = smoothstep(radiusColor, 0.0, d) * intensity;
+        float wColor = smoothstep(radiusColor, 0.0, d) * intensity * waveFactor;
         nonActiveColorProb *= (1.0 - wColor);
         
         // Much wider mask for glass lines and shiny reflections
         float radiusGlass = uCursorRadius * 0.55 * (1.0 - age * 0.2);
-        float wGlass = smoothstep(radiusGlass, 0.0, d) * intensity;
+        float wGlass = smoothstep(radiusGlass, 0.0, d) * intensity * waveFactor;
         nonActiveGlassProb *= (1.0 - wGlass);
     }
     cursorMask = (1.0 - nonActiveColorProb) * smoothstep(0.0, 1.0, uActive);
@@ -272,8 +276,8 @@ void main() {
     // Set visibility to 0.65 inside the wider glassMask trail area
     finalColor += borderLineColor * thinLine * 0.65 * glassMask;
     
-    // Add shiny light appearance along the borders of the lines and under it (thickened to 4.0 for a more visible sheen)
-    float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 4.0, distToBorder);
+    // Add shiny light appearance along the borders of the lines and under it (aligned to 1.5 for a sharp, consistent diagonal line width)
+    float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 1.5, distToBorder);
     vec3 shinyHighlight = vec3(0.95, 0.98, 1.0) * shinyBorder * (0.35 + specAmount * 2.5);
     finalColor += shinyHighlight * glassMask;
     
