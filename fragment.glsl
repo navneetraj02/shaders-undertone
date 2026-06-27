@@ -106,7 +106,7 @@ void main() {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(st, trailPoint);
         float age = float(i) / 30.0;
-        float intensity = 1.0 - age;
+        float intensity = pow(1.0 - age, 0.35); // Slower decay to keep trail active longer
         
         // Smooth weight for this trail point (radius 0.48)
         float w = smoothstep(0.48, 0.0, d) * intensity;
@@ -156,10 +156,10 @@ void main() {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(fluidSt, trailPoint);
         float age = float(i) / 30.0;
-        float intensity = 1.0 - age;
+        float intensity = pow(1.0 - age, 0.35); // Slower decay to keep trail active longer
         
         // Large smooth mask for the color (reduced radius to cover smaller areas)
-        float radius = uCursorRadius * 0.22 * (1.0 - age * 0.5); 
+        float radius = uCursorRadius * 0.22 * (1.0 - age * 0.2); 
         float w = smoothstep(radius, 0.0, d) * intensity;
         nonActiveColorProb *= (1.0 - w);
     }
@@ -199,10 +199,10 @@ void main() {
     
     // 6. TRUE GLASS RENDERING COMPOSITION
     
-    // Frosted glass tint — cool light silver-grey background (visible screen-wide)
+    // Frosted glass tint — cool rich silver-grey background (visible screen-wide at all times)
     float ao = smoothstep(-1.0, 1.0, fluteVal);
-    // Use a cool grey-silver frost color for the glass flutes
-    vec3 frostColor = mix(vec3(0.90, 0.91, 0.94), vec3(0.98, 0.99, 1.0), ao);
+    // Use a cool grey-silver frost color for the glass flutes (matching shaders.com Undertones 3 contrast)
+    vec3 frostColor = mix(vec3(0.82, 0.84, 0.88), vec3(0.96, 0.97, 0.99), ao);
     vec3 baseGlass = frostColor;
     
     // Keep colors deep and dark
@@ -231,9 +231,9 @@ void main() {
     
     float fresnel = pow(1.0 - max(dot(screenNormal3D, viewDir), 0.0), 3.0);
     
-    // Apply specular and fresnel reflections across the entire screen using uActive for a nicely visible reflection
-    finalColor += specular * uActive;
-    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.12 * uActive;
+    // Apply specular and fresnel reflections across the entire screen at all times for persistent shine
+    finalColor += specular;
+    finalColor += vec3(0.85, 0.90, 1.0) * fresnel * 0.12;
     
     // 7. GLASSY EDGE LINES (Border Lines)
     // Draw crisp, thin border lines at both peaks (ridges) and troughs (valleys) of the flutes
@@ -249,21 +249,21 @@ void main() {
     // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
     float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.8, distToBorder);
     
-    // Deeper shadow mix (0.70) across the entire screen (using uActive instead of cursorMask)
-    finalColor = mix(finalColor, finalColor * 0.70, shadowLine * uActive);
+    // Deeper shadow mix (0.70) across the entire screen at all times
+    finalColor = mix(finalColor, finalColor * 0.70, shadowLine);
     
     // Glass highlight: blue-ish/purple-ish tint inside cursor mask, soft glassy grey outside
     vec3 localBorderColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), mixHorizontal);
     vec3 baseGlassLine = vec3(0.85, 0.88, 0.92);
     vec3 borderLineColor = mix(baseGlassLine, localBorderColor, cursorMask);
     
-    // Set visibility to 0.65 across the entire screen (using uActive instead of cursorMask)
-    finalColor += borderLineColor * thinLine * 0.65 * uActive;
+    // Set visibility to 0.65 across the entire screen at all times
+    finalColor += borderLineColor * thinLine * 0.65;
     
     // Add shiny light appearance along the borders of the lines and under it (thickened to 4.0 for a more visible sheen)
     float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 4.0, distToBorder);
-    vec3 shinyHighlight = vec3(0.95, 0.98, 1.0) * shinyBorder * (0.35 + specAmount * 2.5) * uActive;
-    finalColor += shinyHighlight * uActive;
+    vec3 shinyHighlight = vec3(0.95, 0.98, 1.0) * shinyBorder * (0.35 + specAmount * 2.5);
+    finalColor += shinyHighlight;
     
     gl_FragColor = vec4(finalColor, 1.0);
 }
