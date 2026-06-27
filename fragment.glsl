@@ -158,15 +158,15 @@ void main() {
         vec2 trailPoint = uTrail[i] * aspect;
         float d = distance(fluidSt, trailPoint);
         float age = float(i) / 30.0;
-        float intensity = pow(1.0 - age, 4.0); // Faster decay along the trail so colors fade first
+        float intensity = pow(1.0 - age, 2.0); // Slower decay along the trail so colors fade slower
         
         // Large smooth mask for the color
         float radius = uCursorRadius * 0.30 * (1.0 - age * 0.5); 
         float w = smoothstep(radius, 0.0, d) * intensity;
         nonActiveColorProb *= (1.0 - w);
     }
-    // The colors fade out first using pow(uActive, 4.5), then slowly the glass lines fade out using uActive directly
-    cursorMask = (1.0 - nonActiveColorProb) * pow(uActive, 4.5);
+    // The colors fade out slower using pow(uActive, 2.0), then slowly the glass lines fade out using uActive directly
+    cursorMask = (1.0 - nonActiveColorProb) * pow(uActive, 2.0);
     
     // 5. 4-WAY SEPARATED GRADIENT COLORS
     vec3 cLeft = uCursorLeftColor;     // #56c2fc (Vibrant Light Cyan-Blue)
@@ -216,10 +216,10 @@ void main() {
     // In coloured areas the glass stays more transparent so colour shines through clearly
     vec3 coloredGlass = vibrantFluid * mix(vec3(0.92), vec3(1.0), ao);
     
-    // Mix the pure white background with the base glass flutes screen-wide when active (using uActive)
-    vec3 finalColor = mix(pureWhite, baseGlass, uActive);
+    // Start with a clean white background
+    vec3 finalColor = pureWhite;
     
-    // Blend the colored fluid inside the cursorMask core
+    // Blend the beautiful 3D colored glass flutes inside the cursorMask core
     finalColor = mix(finalColor, coloredGlass, cursorMask);
     
     // Glassy reflections — dynamic zig-zag specular reflection that follows the cursor
@@ -262,16 +262,16 @@ void main() {
     // Very subtle, thin shadow line to prevent the "double line" visual illusion (approx 3 pixels wide)
     float shadowLine = 1.0 - smoothstep(0.0, fwNormalized * 0.60, distToBorder);
     
-    // Deeper shadow mix (0.70) across the entire screen using uActive
-    finalColor = mix(finalColor, finalColor * 0.70, shadowLine * uActive);
+    // Deeper shadow mix across the entire screen using uActive to keep lines thin and visible on white background
+    finalColor = mix(finalColor, vec3(0.82, 0.84, 0.88), shadowLine * 0.50 * uActive);
     
     // Glass highlight: blue-ish/purple-ish tint inside cursor mask, soft glassy grey outside
     vec3 localBorderColor = mix(vec3(0.4, 0.65, 1.0), vec3(0.75, 0.45, 1.0), mixHorizontal);
     vec3 baseGlassLine = vec3(0.58, 0.59, 0.61); // Medium-dark grey, properly visible on the white space
     vec3 borderLineColor = mix(baseGlassLine, localBorderColor, cursorMask);
     
-    // Set visibility to 0.65 across the entire screen using uActive
-    finalColor += borderLineColor * thinLine * 0.65 * uActive;
+    // Draw thin glassy border lines screen-wide using mix to keep them perfectly thin and visible
+    finalColor = mix(finalColor, borderLineColor, thinLine * 0.65 * uActive);
     
     // Add shiny light appearance along the borders of the lines and under it (strictly 0.35 width to match thinLine)
     float shinyBorder = 1.0 - smoothstep(0.0, fwNormalized * 0.35, distToBorder);
